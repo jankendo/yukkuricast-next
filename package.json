@@ -1,0 +1,85 @@
+{
+  "name": "yukkuricast-next",
+  "private": true,
+  "version": "0.1.0",
+  "description": "LLM JSON scripts to Yukkuri-style explainer videos for Windows.",
+  "author": "Codex",
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k -n vite,electron \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && npm run build:electron && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "clean": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"foreach ($p in @('dist','dist-electron')) { if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force } }\"",
+    "build": "npm run clean && tsc -b && vite build && npm run build:electron",
+    "build:electron": "esbuild electron/main.ts --bundle --platform=node --format=esm --outfile=dist-electron/main.js --external:electron --external:sharp --external:@ffmpeg-installer/ffmpeg && esbuild electron/preload.ts --bundle --platform=node --format=cjs --outfile=dist-electron/preload.cjs --external:electron",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "lucide-react": "^1.14.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "sharp": "^0.34.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.2.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^42.0.1",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.2.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.5.0",
+    "npm-run-all": "^4.1.5",
+    "playwright": "^1.59.1",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.58.2",
+    "vite": "^7.3.3",
+    "wait-on": "^9.0.6"
+  },
+  "build": {
+    "appId": "jp.codex.yukkuricastnext",
+    "productName": "YukkuriCast Next",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "node_modules/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "public/assets",
+        "to": "assets"
+      },
+      {
+        "from": "schema",
+        "to": "schema"
+      },
+      {
+        "from": "examples",
+        "to": "examples"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": "nsis",
+      "artifactName": "${productName}-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

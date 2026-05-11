@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Original yukkuri surprised character">
+  <defs>
+    <radialGradient id="skin" cx="50%" cy="42%" r="58%">
+      <stop offset="0" stop-color="#fff7eb"/>
+      <stop offset=".75" stop-color="#ffe8d5"/>
+      <stop offset="1" stop-color="#e9b991"/>
+    </radialGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity=".24"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    
+      <g transform="translate(300 66)">
+        <path d="M-22 24c-70-70-160-40-168 30 62 10 118 3 168-30z" fill="#d9274f" stroke="#5f1022" stroke-width="10"/>
+        <path d="M22 24c70-70 160-40 168 30-62 10-118 3-168-30z" fill="#d9274f" stroke="#5f1022" stroke-width="10"/>
+        <circle cx="0" cy="28" r="34" fill="#ff6a86" stroke="#5f1022" stroke-width="10"/>
+      </g>
+    
+    <path d="M82 272C75 143 166 68 300 68s225 75 218 204c-31-56-86-92-158-114 0 0 24 58 18 92-38-70-90-108-156-126 9 48-14 102-64 146 4-61-24-98-76-118z"
+      fill="#2b2024" stroke="#17151a" stroke-width="12" stroke-linejoin="round"/>
+    <path d="M140 186c84-62 184-78 304-12-70-28-146-16-228 34-38 23-61 45-76 66 0-30 0-58 0-88z"
+      fill="#4b323c" opacity=".42"/>
+  
+    <ellipse cx="300" cy="320" rx="236" ry="210" fill="url(#skin)" stroke="#17151a" stroke-width="12"/>
+    <path d="M116 306c32 15 64 15 96 0M388 306c32 15 64 15 96 0" fill="none" stroke="#d49b80" stroke-width="8" stroke-linecap="round" opacity=".35"/>
+    <ellipse cx="190" cy="326" rx="52" ry="24" fill="#ff9fae" opacity=".6"/>
+    <ellipse cx="410" cy="326" rx="52" ry="24" fill="#ff9fae" opacity=".6"/>
+    <g fill="none" stroke="#17151a" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M165 198l72-28" /><path d="M363 170l72 28" />
+      <circle cx="205" cy="250" r="25" /><circle cx="395" cy="250" r="25" />
+      <ellipse cx="300" cy="360" rx="32" ry="42" />
+      <path d="M126 138l-34-32M474 138l34-32M300 96V50" />
+    </g>
+    <path d="M104 418c54 82 130 122 232 114 72-6 126-34 162-84-41 76-107 122-198 126-98 3-169-48-196-156z" fill="#ffdbe4" opacity=".26"/>
+  </g>
+</svg>

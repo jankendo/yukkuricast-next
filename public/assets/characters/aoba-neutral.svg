@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Original yukkuri neutral character">
+  <defs>
+    <radialGradient id="skin" cx="50%" cy="42%" r="58%">
+      <stop offset="0" stop-color="#fff7eb"/>
+      <stop offset=".75" stop-color="#f4dfca"/>
+      <stop offset="1" stop-color="#e9b991"/>
+    </radialGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity=".24"/>
+    </filter>
+  </defs>
+  <g filter="url(#softShadow)">
+    
+    <g>
+      <path d="M118 255c-45 12-70 48-64 92 7 49 44 78 92 74" fill="none" stroke="#1b2638" stroke-width="24" stroke-linecap="round"/>
+      <path d="M482 255c45 12 70 48 64 92-7 49-44 78-92 74" fill="none" stroke="#1b2638" stroke-width="24" stroke-linecap="round"/>
+      <rect x="82" y="292" width="64" height="96" rx="24" fill="#41d7ff" stroke="#1b2638" stroke-width="10"/>
+      <rect x="454" y="292" width="64" height="96" rx="24" fill="#41d7ff" stroke="#1b2638" stroke-width="10"/>
+      <path d="M454 378c-10 92-76 126-164 112" fill="none" stroke="#41d7ff" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    
+    <path d="M82 272C75 143 166 68 300 68s225 75 218 204c-31-56-86-92-158-114 0 0 24 58 18 92-38-70-90-108-156-126 9 48-14 102-64 146 4-61-24-98-76-118z"
+      fill="#31465f" stroke="#17151a" stroke-width="12" stroke-linejoin="round"/>
+    <path d="M140 186c84-62 184-78 304-12-70-28-146-16-228 34-38 23-61 45-76 66 0-30 0-58 0-88z"
+      fill="#557095" opacity=".42"/>
+  
+    <ellipse cx="300" cy="320" rx="236" ry="210" fill="url(#skin)" stroke="#17151a" stroke-width="12"/>
+    <path d="M116 306c32 15 64 15 96 0M388 306c32 15 64 15 96 0" fill="none" stroke="#d49b80" stroke-width="8" stroke-linecap="round" opacity=".35"/>
+    <ellipse cx="190" cy="326" rx="52" ry="24" fill="#f2a0bf" opacity=".6"/>
+    <ellipse cx="410" cy="326" rx="52" ry="24" fill="#f2a0bf" opacity=".6"/>
+    <g fill="none" stroke="#17151a" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+      
+      <path d="M170 248c22 16 55 16 78 0" /><path d="M352 248c22 16 55 16 78 0" />
+      <path d="M268 360c38 24 88 24 126 0" />
+      
+    </g>
+    <path d="M104 418c54 82 130 122 232 114 72-6 126-34 162-84-41 76-107 122-198 126-98 3-169-48-196-156z" fill="#d7f5ff" opacity=".26"/>
+  </g>
+</svg>
