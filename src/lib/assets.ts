@@ -1,7 +1,7 @@
 import type { CharacterProfile, Emotion } from '../types/script'
 
 export function characterAssetUrl(asset: string, emotion: Emotion = 'neutral') {
-  return `/assets/characters/${asset}-${emotion}.svg`
+  return assetUrl(`assets/characters/${asset}-${emotion}.svg`)
 }
 
 export function characterImageSource(character: CharacterProfile, emotion: Emotion = 'neutral') {
@@ -13,5 +13,9 @@ export function characterImageSource(character: CharacterProfile, emotion: Emoti
 }
 
 export function backgroundAssetUrl(name: 'studio-grid' | 'paper-light') {
-  return `/assets/backgrounds/${name}.svg`
+  return assetUrl(`assets/backgrounds/${name}.svg`)
+}
+
+function assetUrl(path: string) {
+  return `${import.meta.env.BASE_URL}${path}`.replace(/\/{2,}/g, '/')
 }

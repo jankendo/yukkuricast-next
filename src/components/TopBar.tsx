@@ -1,4 +1,4 @@
-import { Download, FileInput, Play, RotateCcw, Save, Wand2 } from 'lucide-react'
+import { Download, FileInput, Pause, Play, RotateCcw, Save, Square, Wand2 } from 'lucide-react'
 import { formatDuration } from '../lib/scriptSchema'
 
 interface TopBarProps {
@@ -7,10 +7,14 @@ interface TopBarProps {
   fps: number
   canExport: boolean
   isExporting: boolean
+  isPreviewPlaying: boolean
   onImport: () => void
   onLoadSample: () => void
   onSave: () => void
   onExport: () => void
+  onTogglePreview: () => void
+  onStopPreview: () => void
+  onOpenPromptGuide: () => void
 }
 
 export function TopBar({
@@ -19,10 +23,14 @@ export function TopBar({
   fps,
   canExport,
   isExporting,
+  isPreviewPlaying,
   onImport,
   onLoadSample,
   onSave,
   onExport,
+  onTogglePreview,
+  onStopPreview,
+  onOpenPromptGuide,
 }: TopBarProps) {
   return (
     <header className="topbar">
@@ -54,8 +62,15 @@ export function TopBar({
           <Save size={17} />
           保存
         </button>
-        <button type="button" className="icon-button" title="プレビュー再生">
-          <Play size={17} />
+        <button type="button" className="command-button guide-button" onClick={onOpenPromptGuide}>
+          <Wand2 size={17} />
+          AI 台本
+        </button>
+        <button type="button" className="icon-button" title={isPreviewPlaying ? 'プレビュー一時停止' : 'プレビュー再生'} onClick={onTogglePreview}>
+          {isPreviewPlaying ? <Pause size={17} /> : <Play size={17} />}
+        </button>
+        <button type="button" className="icon-button" title="プレビュー停止" onClick={onStopPreview}>
+          <Square size={15} />
         </button>
         <button
           type="button"

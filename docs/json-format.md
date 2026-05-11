@@ -53,6 +53,7 @@
 次のテーマについて、YukkuriCast Script JSON 1.0 だけを返してください。
 必ず format は "yukkuricast-script"、version は "1.0" にします。
 characters は akari と kohaku の 2 人を使い、各 shot は 4 秒から 7 秒にしてください。
+AquesTalk を使う話者は voice.engine を "aquestalk-player" にし、必要なら voice.aquestalkPreset にプリセット名を入れてください。
 speakerId は characters に存在する id だけを使ってください。
 scenes[].shots[].caption.emphasis には字幕で強調したい短い語句を 1 から 3 個入れてください。
 説明文や Markdown は返さず、JSON オブジェクトだけを返してください。
@@ -62,7 +63,8 @@ scenes[].shots[].caption.emphasis には字幕で強調したい短い語句を 
 
 - `characters[].asset`: `akari`, `kohaku`, `aoba`, `custom`。`custom` はアプリ内の「話者素材を取り込む」から作った PNG 化済みユーザー素材です。
 - `characters[].customAsset`: `asset` が `custom` の時に必要です。取り込み時にアプリがローカル管理フォルダへ安全に変換保存した素材 ID とパスを持ちます。
-- `characters[].voice.engine`: 現時点は `windows-sapi`。Windows 標準の音声合成で WAV を生成します。
+- `characters[].voice.engine`: `windows-sapi` または `aquestalk-player`。`aquestalk-player` はユーザーがアプリで選択した AquesTalkPlayer.exe を使って WAV を生成します。
+- `characters[].voice.aquestalkPreset`: AquesTalkPlayer のプリセット名です。未指定時は AquesTalkPlayer 側の最後の設定が使われます。
 - `scenes[].background.type`: `gradient`, `solid`, `grid`。
 - `shots[].emotion`: `neutral`, `happy`, `thinking`, `surprised`, `serious`。
 - `shots[].layout`: `duo`, `left-focus`, `right-focus`, `solo-center`。
@@ -73,3 +75,9 @@ scenes[].shots[].caption.emphasis には字幕で強調したい短い語句を 
 ## ユーザー素材の安全方針
 
 ユーザーが用意した素材は、Electron renderer から直接ローカルファイルとして読ませません。取り込み時に `png`, `jpg`, `jpeg`, `webp`, `svg` だけを受け付け、20MB 以下であることを確認し、`sharp` で PNG に再エンコードしてからアプリ管理フォルダへ保存します。SVG も直接表示せず PNG 化するため、script や外部参照を UI に持ち込みません。
+
+## AquesTalkPlayer の安全方針
+
+AquesTalkPlayer 本体は同梱しません。ユーザーが公式配布物から展開した `AquesTalkPlayer.exe` をアプリ内で選択すると、そのフルパスだけをユーザーデータフォルダの settings.json に保存します。実行時は shell を使わず、`/T`, `/P`, `/W` を引数配列として渡します。
+
+公式 AquesTalkPlayer はコマンド実行でテキスト指定と WAV 出力が可能です。プリセットを使う場合は JSON の `aquestalkPreset` に AquesTalkPlayer 側のプリセット名を書きます。

@@ -1,26 +1,52 @@
 import type { CSSProperties } from 'react'
+import { Pause, Play, Square } from 'lucide-react'
 import { characterImageSource } from '../lib/assets'
+import { formatDuration } from '../lib/scriptSchema'
 import type { CharacterProfile, SceneBackground, Shot, YukkuriProject } from '../types/script'
 
 interface PreviewStageProps {
   project: YukkuriProject
   shot: Shot
   background: SceneBackground
+  currentTime: number
+  duration: number
+  shotProgress: number
+  isPlaying: boolean
+  audioStatus: string
+  onSeek: (time: number) => void
+  onStop: () => void
+  onTogglePlayback: () => void
 }
 
-export function PreviewStage({ project, shot, background }: PreviewStageProps) {
+export function PreviewStage({
+  project,
+  shot,
+  background,
+  currentTime,
+  duration,
+  shotProgress,
+  isPlaying,
+  audioStatus,
+  onSeek,
+  onStop,
+  onTogglePlayback,
+}: PreviewStageProps) {
   const speaker = project.characters.find((character) => character.id === shot.speakerId)
   const captionText = shot.caption?.text ?? shot.text
 
   return (
     <main className="preview-wrap">
       <div className="preview-toolbar">
-        <span>Preview</span>
+        <div>
+          <span>Preview</span>
+          <strong>{formatDuration(currentTime)} / {formatDuration(duration)}</strong>
+        </div>
         <span>{project.project.resolution.width} x {project.project.resolution.height}</span>
       </div>
       <section className="stage" style={stageStyle(background)} aria-label="video preview">
         <div className="stage-grid" />
-        <VisualCueCard shot={shot} />
+        <div className="stage-playhead" style={{ width: `${Math.round(shotProgress * 100)}%` }} />
+        <VisualCueCard shot={shot} progress={shotProgress} />
         <div className={`character-layer layout-${shot.layout ?? 'duo'}`}>
           {project.characters.map((character) => (
             <CharacterSprite
@@ -29,6 +55,7 @@ export function PreviewStage({ project, shot, background }: PreviewStageProps) {
               shot={shot}
               active={character.id === shot.speakerId}
               hidden={shot.layout === 'solo-center' && project.characters.length > 1 && character.id !== shot.speakerId}
+              isPlaying={isPlaying}
             />
           ))}
         </div>
@@ -37,6 +64,28 @@ export function PreviewStage({ project, shot, background }: PreviewStageProps) {
           <p>{renderEmphasis(captionText, shot.caption?.emphasis ?? [])}</p>
         </div>
       </section>
+
+      <div className="preview-console">
+        <div className="preview-controls" aria-label="preview controls">
+          <button type="button" className="icon-button" onClick={onTogglePlayback} title={isPlaying ? '一時停止' : '再生'}>
+            {isPlaying ? <Pause size={17} /> : <Play size={17} />}
+          </button>
+          <button type="button" className="icon-button" onClick={onStop} title="停止">
+            <Square size={15} />
+          </button>
+        </div>
+        <input
+          className="preview-scrubber"
+          type="range"
+          min={0}
+          max={Math.max(duration, 0.01)}
+          step={0.05}
+          value={Math.min(currentTime, duration)}
+          onChange={(event) => onSeek(Number(event.target.value))}
+          aria-label="preview time"
+        />
+        <div className="audio-status">{audioStatus}</div>
+      </div>
     </main>
   )
 }
@@ -46,11 +95,13 @@ function CharacterSprite({
   shot,
   active,
   hidden,
+  isPlaying,
 }: {
   character: CharacterProfile
   shot: Shot
   active: boolean
   hidden: boolean
+  isPlaying: boolean
 }) {
   if (hidden) {
     return null
@@ -59,21 +110,24 @@ function CharacterSprite({
   const emotion = active ? (shot.emotion ?? character.defaultEmotion ?? 'neutral') : 'neutral'
 
   return (
-    <div className={`character-sprite ${character.side} ${active ? 'speaking' : 'idle'}`}>
+    <div className={`character-sprite ${character.side} ${active ? 'speaking' : 'idle'} ${isPlaying && active ? 'talking' : ''}`}>
       <img src={characterImageSource(character, emotion)} alt={`${character.name} ${emotion}`} />
       <span>{character.name}</span>
     </div>
   )
 }
 
-function VisualCueCard({ shot }: { shot: Shot }) {
+function VisualCueCard({ shot, progress }: { shot: Shot; progress: number }) {
   const visual = shot.visuals?.[0]
   if (!visual) {
     return null
   }
 
   return (
-    <aside className={`visual-card visual-${visual.type}`}>
+    <aside
+      className={`visual-card visual-${visual.type}`}
+      style={{ '--visual-progress': `${Math.round(progress * 100)}%` } as CSSProperties}
+    >
       <div className="visual-type">{visual.type}</div>
       <h3>{visual.title}</h3>
       {visual.body && <p>{visual.body}</p>}

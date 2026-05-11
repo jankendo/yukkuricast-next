@@ -40,8 +40,9 @@ export const yukkuriProjectSchema = z.object({
         defaultEmotion: z.enum(['neutral', 'happy', 'thinking', 'surprised', 'serious']).optional(),
         side: z.enum(['left', 'right']),
         voice: z.object({
-          engine: z.literal('windows-sapi'),
+          engine: z.enum(['windows-sapi', 'aquestalk-player']),
           voiceName: z.string().optional(),
+          aquestalkPreset: z.string().optional(),
           rate: z.number().int().min(-10).max(10).optional(),
           volume: z.number().int().min(0).max(100).optional(),
         }),

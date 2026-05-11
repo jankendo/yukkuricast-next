@@ -15,9 +15,12 @@ export interface ProjectTheme {
   bgm?: 'none' | 'soft' | 'news' | 'tech'
 }
 
+export type VoiceEngine = 'windows-sapi' | 'aquestalk-player'
+
 export interface CharacterVoice {
-  engine: 'windows-sapi'
+  engine: VoiceEngine
   voiceName?: string
+  aquestalkPreset?: string
   rate?: number
   volume?: number
 }
@@ -121,5 +124,25 @@ export interface ScriptFileResult {
 export interface ImportedAssetResult {
   canceled: boolean
   asset?: CustomCharacterAsset
+  error?: string
+}
+
+export interface VoiceEngineSettings {
+  aquestalkPlayerPath?: string
+  updatedAt?: string
+}
+
+export interface VoiceSettingsResult {
+  canceled: boolean
+  settings?: VoiceEngineSettings
+  error?: string
+}
+
+export interface PreviewAudioResult {
+  ok: boolean
+  audioUrl?: string
+  engine?: VoiceEngine
+  duration?: number
+  message?: string
   error?: string
 }

@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, FileJson2, Layers } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FileJson2, Layers, Wand2 } from 'lucide-react'
 import type { YukkuriProject } from '../types/script'
 
 interface ScriptPanelProps {
@@ -9,6 +9,7 @@ interface ScriptPanelProps {
   onJsonTextChange: (value: string) => void
   onApplyJson: () => void
   onSelectShot: (shotId: string) => void
+  onOpenPromptGuide: () => void
 }
 
 export function ScriptPanel({
@@ -19,6 +20,7 @@ export function ScriptPanel({
   onJsonTextChange,
   onApplyJson,
   onSelectShot,
+  onOpenPromptGuide,
 }: ScriptPanelProps) {
   return (
     <aside className="panel script-panel" aria-label="script json panel">
@@ -44,9 +46,15 @@ export function ScriptPanel({
           ))}
         </ul>
       )}
-      <button type="button" className="wide-button" onClick={onApplyJson}>
-        変更を反映
-      </button>
+      <div className="script-actions">
+        <button type="button" className="wide-button" onClick={onApplyJson}>
+          変更を反映
+        </button>
+        <button type="button" className="wide-button accent compact-button" onClick={onOpenPromptGuide}>
+          <Wand2 size={16} />
+          AI用プロンプト
+        </button>
+      </div>
 
       <div className="scene-browser">
         <div className="panel-title small">

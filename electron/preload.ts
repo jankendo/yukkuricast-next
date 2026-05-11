@@ -4,7 +4,12 @@ import type { ExportProgress, YukkuriProject } from '../src/types/script'
 contextBridge.exposeInMainWorld('yukkuri', {
   openScript: () => ipcRenderer.invoke('script:open'),
   saveScript: (content: string) => ipcRenderer.invoke('script:save', content),
+  copyText: (content: string) => ipcRenderer.invoke('clipboard:write-text', content),
   importCharacterAsset: () => ipcRenderer.invoke('asset:import-character'),
+  getVoiceSettings: () => ipcRenderer.invoke('voice:get-settings'),
+  selectAquesTalkPlayer: () => ipcRenderer.invoke('voice:select-aquestalk-player'),
+  renderPreviewAudio: (project: YukkuriProject, shotId: string) =>
+    ipcRenderer.invoke('preview:render-audio', project, shotId),
   exportVideo: (project: YukkuriProject) => ipcRenderer.invoke('video:export', project),
   onExportProgress: (callback: (progress: ExportProgress) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: ExportProgress) => {

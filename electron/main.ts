@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, session } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, protocol, session } from 'electron'
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -8,12 +8,21 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { getAllShots, yukkuriProjectSchema } from '../src/lib/scriptSchema'
-import type { CharacterProfile, CustomCharacterAsset, ExportProgress, SceneBackground, Shot, YukkuriProject } from '../src/types/script'
+import type {
+  CharacterProfile,
+  CustomCharacterAsset,
+  ExportProgress,
+  SceneBackground,
+  Shot,
+  VoiceEngineSettings,
+  YukkuriProject,
+} from '../src/types/script'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL)
 const allowedAssetExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg'])
 const maxImportedAssetBytes = 20 * 1024 * 1024
+const settingsFileName = 'settings.json'
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -121,7 +130,7 @@ function installSecurityGuards() {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: file: yukkuri-asset:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+          "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: file: yukkuri-asset:; media-src 'self' data: file: yukkuri-asset:; font-src 'self' data:; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'",
         ],
         'X-Content-Type-Options': ['nosniff'],
       },
@@ -183,6 +192,14 @@ ipcMain.handle('script:save', async (_event, content: string) => {
   return { canceled: false, path: result.filePath, content }
 })
 
+ipcMain.handle('clipboard:write-text', async (_event, content: string) => {
+  if (typeof content !== 'string' || content.length > 120_000) {
+    throw new Error('コピーできるテキストは 120KB までです。')
+  }
+  clipboard.writeText(content)
+  return { ok: true }
+})
+
 ipcMain.handle('asset:import-character', async () => {
   try {
     const result = await dialog.showOpenDialog(mainWindow!, {
@@ -207,6 +224,73 @@ ipcMain.handle('asset:import-character', async () => {
       canceled: false,
       error: error instanceof Error ? error.message : String(error),
     }
+  }
+})
+
+ipcMain.handle('voice:get-settings', async () => readVoiceSettings())
+
+ipcMain.handle('voice:select-aquestalk-player', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow!, {
+      title: 'AquesTalkPlayer.exe を選択',
+      properties: ['openFile'],
+      filters: [{ name: 'AquesTalkPlayer', extensions: ['exe'] }],
+    })
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { canceled: true }
+    }
+
+    const exePath = result.filePaths[0]
+    await validateAquesTalkPlayerPath(exePath)
+    const settings = await saveVoiceSettings({
+      ...(await readVoiceSettings()),
+      aquestalkPlayerPath: exePath,
+      updatedAt: new Date().toISOString(),
+    })
+    return { canceled: false, settings }
+  } catch (error) {
+    return {
+      canceled: false,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+})
+
+ipcMain.handle('preview:render-audio', async (_event, rawProject: YukkuriProject, shotId: string) => {
+  const workspace = path.join(app.getPath('temp'), 'yukkuricast-next-preview', randomUUID())
+  const outputPath = path.join(workspace, `${safeFileName(shotId)}.wav`)
+
+  try {
+    const project = yukkuriProjectSchema.parse(rawProject) as YukkuriProject
+    assertSpeakerReferences(project)
+    const shot = getAllShots(project).find((candidate) => candidate.id === shotId)
+    if (!shot) {
+      throw new Error(`preview shot not found: ${shotId}`)
+    }
+
+    const speaker = project.characters.find((character) => character.id === shot.speakerId)
+    if (!speaker) {
+      throw new Error(`speaker not found: ${shot.speakerId}`)
+    }
+
+    await mkdir(workspace, { recursive: true })
+    await synthesizeVoice(shot.text, speaker, outputPath, shot.duration, resolveFfmpegPath())
+    const wav = await readFile(outputPath)
+    return {
+      ok: true,
+      audioUrl: `data:audio/wav;base64,${wav.toString('base64')}`,
+      duration: shot.duration,
+      engine: speaker.voice.engine,
+      message: `${voiceEngineLabel(speaker.voice.engine)} preview ready`,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  } finally {
+    await rm(workspace, { recursive: true, force: true })
   }
 })
 
@@ -267,7 +351,7 @@ async function exportProject(
 
       progress({
         phase: 'voice',
-        message: `${shot.id}: Windows SAPI 音声を生成中`,
+        message: `${shot.id}: ${voiceEngineLabel(speaker.voice.engine)} 音声を生成中`,
         percent: percent(++step, totalSteps),
       })
       await synthesizeVoice(shot.text, speaker, voicePath, shot.duration, ffmpegPath)
@@ -349,6 +433,11 @@ async function synthesizeVoice(
   duration: number,
   ffmpegPath: string,
 ) {
+  if (speaker.voice.engine === 'aquestalk-player') {
+    await synthesizeWithAquesTalkPlayer(text, speaker, outputPath)
+    return
+  }
+
   if (process.platform !== 'win32') {
     await makeSilence(ffmpegPath, outputPath, duration)
     return
@@ -374,6 +463,33 @@ $synth.Dispose()
     await runProcess('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script])
   } catch {
     await makeSilence(ffmpegPath, outputPath, duration)
+  }
+}
+
+async function synthesizeWithAquesTalkPlayer(text: string, speaker: CharacterProfile, outputPath: string) {
+  if (process.platform !== 'win32') {
+    throw new Error('AquesTalkPlayer は Windows 版アプリで利用してください。')
+  }
+
+  const settings = await readVoiceSettings()
+  const exePath = settings.aquestalkPlayerPath
+  if (!exePath) {
+    throw new Error('AquesTalkPlayer.exe が未設定です。Inspector の Voice から選択してください。')
+  }
+
+  await validateAquesTalkPlayerPath(exePath)
+  await mkdir(path.dirname(outputPath), { recursive: true })
+  const args: string[] = []
+  const preset = speaker.voice.aquestalkPreset?.trim()
+  if (preset) {
+    args.push('/P', preset)
+  }
+  args.push('/T', text, '/W', outputPath)
+  await runProcess(exePath, args)
+
+  const result = await stat(outputPath).catch(() => undefined)
+  if (!result || result.size === 0) {
+    throw new Error('AquesTalkPlayer の WAV 出力が作成されませんでした。プリセット名とライセンス設定を確認してください。')
   }
 }
 
@@ -519,6 +635,48 @@ function assetRoot() {
 
 function customAssetDir() {
   return path.join(app.getPath('userData'), 'custom-assets')
+}
+
+function settingsPath() {
+  return path.join(app.getPath('userData'), settingsFileName)
+}
+
+async function readVoiceSettings(): Promise<VoiceEngineSettings> {
+  try {
+    const content = await readFile(settingsPath(), 'utf8')
+    const parsed = JSON.parse(content) as VoiceEngineSettings
+    return {
+      aquestalkPlayerPath:
+        typeof parsed.aquestalkPlayerPath === 'string' && parsed.aquestalkPlayerPath.trim()
+          ? parsed.aquestalkPlayerPath
+          : undefined,
+      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : undefined,
+    }
+  } catch {
+    return {}
+  }
+}
+
+async function saveVoiceSettings(settings: VoiceEngineSettings) {
+  await mkdir(app.getPath('userData'), { recursive: true })
+  const normalized: VoiceEngineSettings = {
+    aquestalkPlayerPath: settings.aquestalkPlayerPath,
+    updatedAt: settings.updatedAt ?? new Date().toISOString(),
+  }
+  await writeFile(settingsPath(), JSON.stringify(normalized, null, 2), 'utf8')
+  return normalized
+}
+
+async function validateAquesTalkPlayerPath(exePath: string) {
+  const resolved = path.resolve(exePath)
+  const fileStat = await stat(resolved)
+  if (!fileStat.isFile() || path.extname(resolved).toLowerCase() !== '.exe') {
+    throw new Error('AquesTalkPlayer.exe を指定してください。')
+  }
+
+  if (path.basename(resolved).toLowerCase() !== 'aquestalkplayer.exe') {
+    throw new Error('安全のため、ファイル名が AquesTalkPlayer.exe の実行ファイルだけを受け付けます。')
+  }
 }
 
 function resolveCustomAssetPath(asset: CustomCharacterAsset) {
@@ -680,6 +838,10 @@ function percent(step: number, total: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
+}
+
+function voiceEngineLabel(engine: CharacterProfile['voice']['engine']) {
+  return engine === 'aquestalk-player' ? 'AquesTalkPlayer' : 'Windows SAPI'
 }
 
 function powerShellString(value: string) {

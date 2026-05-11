@@ -1,5 +1,23 @@
-import { Download, Gauge, ImagePlus, LockKeyhole, Mic2, PanelRight, Settings2, Sparkles } from 'lucide-react'
-import type { ExportProgress, ExportResult, SceneBackground, Shot, YukkuriProject } from '../types/script'
+import {
+  Download,
+  Gauge,
+  ImagePlus,
+  LockKeyhole,
+  Mic2,
+  PanelRight,
+  Settings2,
+  Sparkles,
+  Wand2,
+} from 'lucide-react'
+import type {
+  CharacterVoice,
+  ExportProgress,
+  ExportResult,
+  SceneBackground,
+  Shot,
+  VoiceEngineSettings,
+  YukkuriProject,
+} from '../types/script'
 
 interface InspectorPanelProps {
   project: YukkuriProject
@@ -7,7 +25,11 @@ interface InspectorPanelProps {
   background: SceneBackground
   exportProgress: ExportProgress
   exportResult: ExportResult | null
+  voiceSettings: VoiceEngineSettings
+  onConfigureAquesTalk: () => void
   onImportAsset: (speakerId: string) => void
+  onSetAquesTalkVoice: (speakerId: string) => void
+  onUpdateSpeakerVoice: (speakerId: string, patch: Partial<CharacterVoice>) => void
 }
 
 export function InspectorPanel({
@@ -16,7 +38,11 @@ export function InspectorPanel({
   background,
   exportProgress,
   exportResult,
+  voiceSettings,
+  onConfigureAquesTalk,
   onImportAsset,
+  onSetAquesTalkVoice,
+  onUpdateSpeakerVoice,
 }: InspectorPanelProps) {
   const speaker = project.characters.find((character) => character.id === shot.speakerId)
 
@@ -71,14 +97,47 @@ export function InspectorPanel({
         )}
       </section>
 
-      <section className="info-group">
+      <section className="info-group voice-studio">
         <div className="group-heading">
           <Mic2 size={16} />
-          Voice
+          Voice Studio
         </div>
         <p className="inspector-text">
-          Windows SAPI / rate {speaker?.voice.rate ?? 0} / volume {speaker?.voice.volume ?? 100}
+          {speaker?.voice.engine === 'aquestalk-player' ? 'AquesTalkPlayer' : 'Windows SAPI'} / rate{' '}
+          {speaker?.voice.rate ?? 0} / volume {speaker?.voice.volume ?? 100}
         </p>
+        {speaker?.voice.engine === 'aquestalk-player' && !voiceSettings.aquestalkPlayerPath && (
+          <p className="warning-text">AquesTalkPlayer.exe が未設定です。</p>
+        )}
+        <div className="voice-button-grid">
+          <button type="button" className="wide-button accent" disabled={!speaker} onClick={() => speaker && onSetAquesTalkVoice(speaker.id)}>
+            <Wand2 size={16} />
+            AquesTalk化
+          </button>
+          <button
+            type="button"
+            className="wide-button"
+            disabled={!speaker}
+            onClick={() => speaker && onUpdateSpeakerVoice(speaker.id, { engine: 'windows-sapi' })}
+          >
+            <Mic2 size={16} />
+            SAPI
+          </button>
+        </div>
+        <button type="button" className="wide-button" onClick={onConfigureAquesTalk}>
+          AquesTalkPlayer.exe を選択
+        </button>
+        {speaker?.voice.engine === 'aquestalk-player' && (
+          <label className="field-label">
+            プリセット名
+            <input
+              value={speaker.voice.aquestalkPreset ?? ''}
+              placeholder="例: れいむ / まりさ / デフォルト"
+              onChange={(event) => onUpdateSpeakerVoice(speaker.id, { aquestalkPreset: event.target.value })}
+            />
+          </label>
+        )}
+        {voiceSettings.aquestalkPlayerPath && <code className="path-code">{voiceSettings.aquestalkPlayerPath}</code>}
       </section>
 
       <section className="info-group asset-import-box">
@@ -146,6 +205,7 @@ export function InspectorPanel({
           <span>Sandbox</span>
           <span>Local assets</span>
           <span>No Node in UI</span>
+          <span>User-selected TTS</span>
         </div>
       </section>
     </aside>
