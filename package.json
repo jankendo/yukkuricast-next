@@ -42,8 +42,8 @@
     "playwright": "^1.59.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.11",
-    "wait-on": "^9.0.6"
+    "vite": "^8.0.12",
+    "wait-on": "^9.0.10"
   },
   "build": {
     "appId": "jp.codex.yukkuricastnext",
