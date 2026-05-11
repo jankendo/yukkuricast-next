@@ -6,8 +6,9 @@ import { ScriptPanel } from './components/ScriptPanel'
 import { Timeline } from './components/Timeline'
 import { TopBar } from './components/TopBar'
 import { sampleProject, sampleProjectJson } from './data/sampleProject'
+import { normalizeAquesTalkPreset } from './lib/presets'
 import { buildAiJsonPromptTemplate } from './lib/promptTemplate'
-import { getProjectDuration, parseYukkuriProject } from './lib/scriptSchema'
+import { parseYukkuriProject } from './lib/scriptSchema'
 import { clampTime, getProjectTimelineDuration, getShotAtTime, getShotStart, getTimedShots } from './lib/timeline'
 import type {
   CharacterVoice,
@@ -34,6 +35,10 @@ function App() {
   const [playbackRevision, setPlaybackRevision] = useState(0)
   const [previewAudioStatus, setPreviewAudioStatus] = useState('音声プレビュー待機中')
   const [voiceSettings, setVoiceSettings] = useState<VoiceEngineSettings>({})
+  const [previewAudioDurationState, setPreviewAudioDurationState] = useState<{
+    key: string
+    values: Record<string, number>
+  }>({ key: '', values: {} })
   const [isPromptGuideOpen, setIsPromptGuideOpen] = useState(false)
   const [promptCopied, setPromptCopied] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
@@ -78,8 +83,25 @@ function App() {
     previewTimeRef.current = previewTime
   }, [previewTime])
 
-  const timedShots = useMemo(() => getTimedShots(project), [project])
-  const duration = useMemo(() => getProjectTimelineDuration(project), [project])
+  const previewAudioCacheKey = useMemo(
+    () =>
+      JSON.stringify({
+        characters: project.characters.map((character) => ({
+          id: character.id,
+          voice: character.voice,
+        })),
+        shots: project.scenes.flatMap((scene) =>
+          scene.shots.map((shot) => ({ id: shot.id, speakerId: shot.speakerId, text: shot.text })),
+        ),
+      }),
+    [project],
+  )
+  const previewAudioDurations = useMemo(
+    () => (previewAudioDurationState.key === previewAudioCacheKey ? previewAudioDurationState.values : {}),
+    [previewAudioCacheKey, previewAudioDurationState],
+  )
+  const timedShots = useMemo(() => getTimedShots(project, previewAudioDurations), [previewAudioDurations, project])
+  const duration = useMemo(() => getProjectTimelineDuration(project, previewAudioDurations), [previewAudioDurations, project])
   const activeContext = useMemo(() => {
     if (timedShots.length === 0) {
       return undefined
@@ -92,18 +114,6 @@ function App() {
     : 0
   const visibleActiveShotId = activeContext?.id ?? activeShotId
   const aiPromptTemplate = useMemo(() => buildAiJsonPromptTemplate(project), [project])
-  const previewAudioCacheKey = useMemo(
-    () =>
-      JSON.stringify({
-        characters: project.characters.map((character) => ({
-          id: character.id,
-          voice: character.voice,
-        })),
-        shots: timedShots.map((shot) => ({ id: shot.id, speakerId: shot.speakerId, text: shot.text })),
-      }),
-    [project.characters, timedShots],
-  )
-
   const warmPreviewAudio = useCallback(
     async (shotId: string) => {
       if (!window.yukkuri?.renderPreviewAudio) {
@@ -123,6 +133,22 @@ function App() {
         .then((result) => {
           previewAudioCacheRef.current.set(cacheKey, result)
           previewAudioPendingRef.current.delete(cacheKey)
+          if (result.ok && Number.isFinite(result.duration) && result.duration) {
+            setPreviewAudioDurationState((current) => {
+              const nextDuration = Math.max(0, result.duration ?? 0)
+              const currentValues = current.key === previewAudioCacheKey ? current.values : {}
+              if (Math.abs((currentValues[shotId] ?? 0) - nextDuration) < 0.02) {
+                return current
+              }
+              return {
+                key: previewAudioCacheKey,
+                values: {
+                  ...currentValues,
+                  [shotId]: nextDuration,
+                },
+              }
+            })
+          }
           return result
         })
         .catch((error: unknown) => {
@@ -255,6 +281,7 @@ function App() {
       setErrors([])
       setExportResult(null)
       setPreviewAudioStatus('音声プレビュー待機中')
+      setPreviewAudioDurationState({ key: '', values: {} })
     } catch (error) {
       setErrors(formatError(error))
     }
@@ -380,11 +407,14 @@ function App() {
     return undefined
   }
 
-  async function useAquesTalkForSpeaker(speakerId: string) {
+  async function useAquesTalkForSpeaker(speakerId: string, preset?: string) {
     if (!voiceSettings.aquestalkPlayerPath) {
       await configureAquesTalkPlayer()
     }
-    updateSpeakerVoice(speakerId, { engine: 'aquestalk-player' })
+    updateSpeakerVoice(speakerId, {
+      engine: 'aquestalk-player',
+      aquestalkPreset: normalizeAquesTalkPreset(preset),
+    })
   }
 
   function updateSpeakerVoice(speakerId: string, patch: Partial<CharacterVoice>) {
@@ -413,6 +443,7 @@ function App() {
     setExportResult(null)
     setExportProgress(idleProgress)
     setPreviewAudioStatus('音声プレビュー待機中')
+    setPreviewAudioDurationState({ key: '', values: {} })
   }
 
   function togglePreview() {
@@ -441,7 +472,7 @@ function App() {
   function seekPreview(nextTime: number) {
     const next = clampTime(nextTime, duration)
     setPreviewTime(next)
-    const shot = getShotAtTime(project, next)
+    const shot = getShotAtTime(project, next, previewAudioDurations)
     if (shot) {
       setActiveShotId(shot.id)
     }
@@ -450,7 +481,7 @@ function App() {
 
   function selectShot(shotId: string) {
     setActiveShotId(shotId)
-    setPreviewTime(getShotStart(project, shotId))
+    setPreviewTime(getShotStart(project, shotId, previewAudioDurations))
     setPlaybackRevision((revision) => revision + 1)
   }
 
@@ -478,7 +509,7 @@ function App() {
     <div className="app-shell">
       <TopBar
         title={project.project.title}
-        duration={getProjectDuration(project)}
+        duration={duration}
         fps={project.project.fps}
         canExport={errors.length === 0}
         isExporting={isExporting}

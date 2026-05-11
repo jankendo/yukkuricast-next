@@ -397,10 +397,21 @@ button:disabled {
   aspect-ratio: 16 / 9;
   margin: 0 auto;
   overflow: hidden;
-  border: 1px solid #36465b;
+  border: 1px solid #3d4b5f;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   isolation: isolate;
+}
+
+.stage::before {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 34%),
+    linear-gradient(0deg, rgba(7, 10, 14, 0.08), transparent 32%);
+  content: "";
+  pointer-events: none;
+  z-index: 1;
 }
 
 .stage-grid {
@@ -411,7 +422,12 @@ button:disabled {
     linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.08));
-  opacity: 0.7;
+  opacity: 0.36;
+}
+
+.stage-asset .stage-grid,
+.stage-solid .stage-grid {
+  opacity: 0.12;
 }
 
 .stage-playhead {
@@ -425,24 +441,10 @@ button:disabled {
   z-index: 8;
 }
 
-.stage::after {
-  position: absolute;
-  right: -10%;
-  bottom: -28%;
-  width: 70%;
-  height: 50%;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--stage-accent, #35d0ff) 30%, transparent);
-  content: "";
-  filter: blur(52px);
-  opacity: 0.55;
-  z-index: -1;
-}
-
 .character-layer {
   position: absolute;
-  inset: 12% 6% 18%;
-  z-index: 2;
+  inset: 18% 7% 24%;
+  z-index: 3;
 }
 
 .character-sprite {
@@ -456,29 +458,29 @@ button:disabled {
 }
 
 .character-sprite.left {
-  left: 4%;
+  left: 2%;
 }
 
 .character-sprite.right {
-  right: 4%;
+  right: 2%;
 }
 
 .layout-left-focus .character-sprite.left,
 .layout-right-focus .character-sprite.right,
 .layout-solo-center .character-sprite {
-  transform: translateY(-2%) scale(1.12);
+  transform: translateY(-3%) scale(1.08);
 }
 
 .layout-left-focus .character-sprite.right,
 .layout-right-focus .character-sprite.left {
-  opacity: 0.64;
-  transform: translateY(8%) scale(0.86);
+  opacity: 0.68;
+  transform: translateY(7%) scale(0.86);
 }
 
 .layout-solo-center .character-sprite {
   left: 50%;
   right: auto;
-  transform: translateX(-50%) translateY(-2%) scale(1.12);
+  transform: translateX(-50%) translateY(-4%) scale(1.08);
 }
 
 .character-sprite.speaking img {
@@ -490,34 +492,34 @@ button:disabled {
 }
 
 .character-sprite img {
-  width: clamp(150px, 18vw, 280px);
-  max-width: 30vw;
+  width: clamp(92px, 8.4vw, 160px);
+  max-width: 17vw;
   user-select: none;
 }
 
 .character-sprite span {
-  margin-top: -8px;
-  padding: 5px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  background: rgba(7, 12, 18, 0.72);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 800;
+  margin-top: -6px;
+  padding: 4px 9px;
+  border: 1px solid rgba(17, 21, 26, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #16202a;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .visual-card {
   position: absolute;
   top: 7%;
-  right: 6%;
+  right: 5.5%;
   z-index: 4;
-  width: min(34%, 360px);
-  padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  width: min(39%, 430px);
+  padding: 16px 18px 18px;
+  border: 1px solid rgba(14, 22, 31, 0.22);
   border-radius: var(--radius);
-  background: rgba(8, 14, 20, 0.76);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(8px);
 }
 
 .visual-card::after {
@@ -532,7 +534,7 @@ button:disabled {
 
 .visual-type {
   margin-bottom: 8px;
-  color: var(--amber);
+  color: #213043;
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 800;
@@ -541,13 +543,14 @@ button:disabled {
 
 .visual-card h3 {
   margin: 0 0 8px;
+  color: #10151b;
   font-size: clamp(16px, 1.5vw, 24px);
   line-height: 1.15;
 }
 
 .visual-card p,
 .visual-card li {
-  color: #d5e2ef;
+  color: #2d3b48;
   font-size: clamp(12px, 1vw, 15px);
   line-height: 1.55;
 }
@@ -563,31 +566,40 @@ button:disabled {
 
 .caption-box {
   position: absolute;
-  left: 7%;
-  right: 7%;
-  bottom: 5%;
+  left: 5.5%;
+  right: 5.5%;
+  bottom: 5.2%;
   display: grid;
   gap: 8px;
-  padding: 14px 18px 16px;
-  border: 2px solid rgba(255, 255, 255, 0.22);
+  padding: 13px 18px 15px;
+  border: 1px solid rgba(9, 13, 17, 0.24);
   border-radius: var(--radius);
-  background: rgba(4, 8, 13, 0.86);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-  z-index: 5;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  z-index: 6;
 }
 
 .speaker-name {
-  color: var(--amber);
-  font-size: 13px;
-  font-weight: 850;
+  justify-self: start;
+  margin-top: -30px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 6px;
+  background: #10151b;
+  color: #ffcc4d;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .caption-box p {
   margin: 0;
   color: #fff;
-  font-size: clamp(17px, 2vw, 36px);
-  font-weight: 850;
+  font-size: clamp(17px, 1.85vw, 34px);
+  font-weight: 900;
   line-height: 1.28;
+  -webkit-text-stroke: 0.045em #11151a;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 4px rgba(0, 0, 0, 0.34);
   text-wrap: balance;
 }
 
@@ -596,6 +608,8 @@ button:disabled {
   border-radius: 4px;
   background: var(--amber);
   color: #11151c;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
 }
 
 .preview-console {
@@ -856,6 +870,42 @@ dd {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 10px;
+}
+
+.preset-button-grid,
+.background-preset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.preset-chip,
+.background-preset-list span {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 9px;
+  background: #0d1722;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.preset-chip {
+  cursor: pointer;
+}
+
+.preset-chip.active {
+  border-color: rgba(255, 190, 69, 0.78);
+  background: var(--amber-soft);
+  color: #ffe2a5;
+}
+
+.background-preset-list span {
+  display: inline-flex;
+  align-items: center;
+  border-color: color-mix(in srgb, var(--preset-accent, #35d0ff) 58%, var(--line));
 }
 
 .field-label {
@@ -1128,13 +1178,13 @@ dd {
   }
 
   .character-sprite img {
-    width: 160px;
+    width: 96px;
   }
 
   .visual-card {
     top: 5%;
     right: 5%;
-    width: 44%;
+    width: 45%;
     padding: 10px;
   }
 

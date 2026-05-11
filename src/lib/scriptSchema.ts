@@ -27,7 +27,7 @@ export const yukkuriProjectSchema = z.object({
       z.object({
         id: z.string().min(1).regex(/^[a-zA-Z0-9_-]+$/),
         name: z.string().min(1),
-        asset: z.enum(['akari', 'kohaku', 'aoba', 'custom']),
+        asset: z.enum(['reimu', 'marisa', 'akari', 'kohaku', 'aoba', 'custom']),
         customAsset: z
           .object({
             id: z.string().min(1),
@@ -57,7 +57,11 @@ export const yukkuriProjectSchema = z.object({
         title: z.string().min(1),
         summary: z.string().optional(),
         background: z.object({
-          type: z.enum(['gradient', 'solid', 'grid']),
+          type: z.enum(['gradient', 'solid', 'grid', 'asset']),
+          asset: z
+            .enum(['studio-grid', 'paper-light', 'classroom-board', 'news-desk', 'tatami-room', 'night-city'])
+            .optional(),
+          label: z.string().optional(),
           from: colorSchema.optional(),
           to: colorSchema.optional(),
           color: colorSchema.optional(),

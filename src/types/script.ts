@@ -4,6 +4,16 @@ export type StageLayout = 'duo' | 'left-focus' | 'right-focus' | 'solo-center'
 
 export type VisualCueType = 'image' | 'keyword' | 'bullet' | 'chart' | 'code'
 
+export type CharacterAsset = 'reimu' | 'marisa' | 'akari' | 'kohaku' | 'aoba' | 'custom'
+
+export type BackgroundAsset =
+  | 'studio-grid'
+  | 'paper-light'
+  | 'classroom-board'
+  | 'news-desk'
+  | 'tatami-room'
+  | 'night-city'
+
 export interface Resolution {
   width: number
   height: number
@@ -36,7 +46,7 @@ export interface CustomCharacterAsset {
 export interface CharacterProfile {
   id: string
   name: string
-  asset: 'akari' | 'kohaku' | 'aoba' | 'custom'
+  asset: CharacterAsset
   customAsset?: CustomCharacterAsset
   defaultEmotion?: Emotion
   side: 'left' | 'right'
@@ -44,7 +54,9 @@ export interface CharacterProfile {
 }
 
 export interface SceneBackground {
-  type: 'gradient' | 'solid' | 'grid'
+  type: 'gradient' | 'solid' | 'grid' | 'asset'
+  asset?: BackgroundAsset
+  label?: string
   from?: string
   to?: string
   color?: string

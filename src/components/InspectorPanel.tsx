@@ -9,6 +9,8 @@ import {
   Sparkles,
   Wand2,
 } from 'lucide-react'
+import type { CSSProperties } from 'react'
+import { AQUESTALK_VOICE_PRESETS, BACKGROUND_PRESETS, normalizeAquesTalkPreset } from '../lib/presets'
 import type {
   CharacterVoice,
   ExportProgress,
@@ -28,7 +30,7 @@ interface InspectorPanelProps {
   voiceSettings: VoiceEngineSettings
   onConfigureAquesTalk: () => void
   onImportAsset: (speakerId: string) => void
-  onSetAquesTalkVoice: (speakerId: string) => void
+  onSetAquesTalkVoice: (speakerId: string, preset?: string) => void
   onUpdateSpeakerVoice: (speakerId: string, patch: Partial<CharacterVoice>) => void
 }
 
@@ -73,11 +75,13 @@ export function InspectorPanel({
           </div>
           <div>
             <dt>秒数</dt>
-            <dd>{shot.duration.toFixed(1)}s</dd>
+            <dd>
+              {shot.duration.toFixed(1)}s{'scriptDuration' in shot ? ` / JSON ${(shot.scriptDuration as number).toFixed(1)}s` : ''}
+            </dd>
           </div>
           <div>
             <dt>背景</dt>
-            <dd>{background.type}</dd>
+            <dd>{background.type === 'asset' ? background.asset : background.type}</dd>
           </div>
         </dl>
       </section>
@@ -103,8 +107,8 @@ export function InspectorPanel({
           Voice Studio
         </div>
         <p className="inspector-text">
-          {speaker?.voice.engine === 'aquestalk-player' ? 'AquesTalkPlayer' : 'Windows SAPI'} / rate{' '}
-          {speaker?.voice.rate ?? 0} / volume {speaker?.voice.volume ?? 100}
+          {speaker?.voice.engine === 'aquestalk-player' ? 'AquesTalkPlayer 標準' : 'Windows SAPI'} / preset{' '}
+          {normalizeAquesTalkPreset(speaker?.voice.aquestalkPreset)} / volume {speaker?.voice.volume ?? 100}
         </p>
         {speaker?.voice.engine === 'aquestalk-player' && !voiceSettings.aquestalkPlayerPath && (
           <p className="warning-text">AquesTalkPlayer.exe が未設定です。</p>
@@ -127,12 +131,27 @@ export function InspectorPanel({
         <button type="button" className="wide-button" onClick={onConfigureAquesTalk}>
           AquesTalkPlayer.exe を選択
         </button>
+        {speaker && (
+          <div className="preset-button-grid" aria-label="AquesTalk presets">
+            {AQUESTALK_VOICE_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className={normalizeAquesTalkPreset(speaker.voice.aquestalkPreset) === preset.preset ? 'preset-chip active' : 'preset-chip'}
+                title={preset.description}
+                onClick={() => onSetAquesTalkVoice(speaker.id, preset.preset)}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        )}
         {speaker?.voice.engine === 'aquestalk-player' && (
           <label className="field-label">
             プリセット名
             <input
               value={speaker.voice.aquestalkPreset ?? ''}
-              placeholder="例: れいむ / まりさ / デフォルト"
+              placeholder="例: れいむ / まりさ / こいし / さとり"
               onChange={(event) => onUpdateSpeakerVoice(speaker.id, { aquestalkPreset: event.target.value })}
             />
           </label>
@@ -193,6 +212,20 @@ export function InspectorPanel({
             <dd>{project.project.theme.palette}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="info-group compact">
+        <div className="group-heading">
+          <Sparkles size={16} />
+          Background Presets
+        </div>
+        <div className="background-preset-list">
+          {BACKGROUND_PRESETS.map((preset) => (
+            <span key={preset.id} title={preset.description} style={{ '--preset-accent': preset.accent } as CSSProperties}>
+              {preset.label}
+            </span>
+          ))}
+        </div>
       </section>
 
       <section className="info-group compact security-stack">

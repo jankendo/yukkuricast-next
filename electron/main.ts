@@ -7,6 +7,7 @@ import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
+import { normalizeAquesTalkPreset } from '../src/lib/presets'
 import { getAllShots, yukkuriProjectSchema } from '../src/lib/scriptSchema'
 import type {
   CharacterProfile,
@@ -23,6 +24,14 @@ const isDev = Boolean(process.env.VITE_DEV_SERVER_URL)
 const allowedAssetExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg'])
 const maxImportedAssetBytes = 20 * 1024 * 1024
 const settingsFileName = 'settings.json'
+const audioTailPaddingSeconds = 0.18
+const bundledAquesTalkPlayerCandidates = [
+  'D:\\user\\Download\\aquestalkplayer_20250606\\aquestalkplayer\\AquesTalkPlayer.exe',
+]
+
+interface AudioRenderResult {
+  duration: number
+}
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -92,7 +101,7 @@ if (renderSampleIndex >= 0 || renderJsonIndex >= 0) {
       await exportProject(project, outputPath, (progress) => {
         console.log(`${progress.phase} ${progress.percent}% ${progress.message}`)
       })
-      app.quit()
+      app.exit(0)
     })
     .catch((error) => {
       console.error(error)
@@ -275,14 +284,15 @@ ipcMain.handle('preview:render-audio', async (_event, rawProject: YukkuriProject
     }
 
     await mkdir(workspace, { recursive: true })
-    await synthesizeVoice(shot.text, speaker, outputPath, shot.duration, resolveFfmpegPath())
+    const voice = await synthesizeVoice(shot.text, speaker, outputPath, shot.duration, resolveFfmpegPath())
     const wav = await readFile(outputPath)
+    const effectiveDuration = normalizeDuration(Math.max(shot.duration, voice.duration + audioTailPaddingSeconds))
     return {
       ok: true,
       audioUrl: `data:audio/wav;base64,${wav.toString('base64')}`,
-      duration: shot.duration,
+      duration: effectiveDuration,
       engine: speaker.voice.engine,
-      message: `${voiceEngineLabel(speaker.voice.engine)} preview ready`,
+      message: `${voiceEngineLabel(speaker.voice.engine)} preview ready (${voice.duration.toFixed(2)}s)`,
     }
   } catch (error) {
     return {
@@ -354,21 +364,25 @@ async function exportProject(
         message: `${shot.id}: ${voiceEngineLabel(speaker.voice.engine)} 音声を生成中`,
         percent: percent(++step, totalSteps),
       })
-      await synthesizeVoice(shot.text, speaker, voicePath, shot.duration, ffmpegPath)
+      const voice = await synthesizeVoice(shot.text, speaker, voicePath, shot.duration, ffmpegPath)
+      const clipDuration = normalizeDuration(Math.max(shot.duration, voice.duration + audioTailPaddingSeconds))
 
       progress({
         phase: 'frame',
-        message: `${shot.id}: 画像フレームを生成中`,
+        message: `${shot.id}: 画像フレームを生成中 (${clipDuration.toFixed(2)}s)`,
         percent: percent(++step, totalSteps),
       })
       await renderFrame(project, shot, shot.background, framePath)
 
       progress({
         phase: 'clip',
-        message: `${shot.id}: MP4 クリップを生成中`,
+        message:
+          clipDuration > shot.duration + 0.05
+            ? `${shot.id}: 音声尺に合わせて ${shot.duration.toFixed(2)}s -> ${clipDuration.toFixed(2)}s に延長`
+            : `${shot.id}: MP4 クリップを生成中`,
         percent: percent(++step, totalSteps),
       })
-      await makeClip(ffmpegPath, framePath, voicePath, shot.duration, project.project.fps, clipPath)
+      await makeClip(ffmpegPath, framePath, voicePath, clipDuration, project.project.fps, clipPath)
       clips.push(clipPath)
     }
 
@@ -432,15 +446,15 @@ async function synthesizeVoice(
   outputPath: string,
   duration: number,
   ffmpegPath: string,
-) {
+): Promise<AudioRenderResult> {
   if (speaker.voice.engine === 'aquestalk-player') {
     await synthesizeWithAquesTalkPlayer(text, speaker, outputPath)
-    return
+    return { duration: await readWavDurationSeconds(outputPath, duration) }
   }
 
   if (process.platform !== 'win32') {
     await makeSilence(ffmpegPath, outputPath, duration)
-    return
+    return { duration }
   }
 
   const rate = clamp(speaker.voice.rate ?? 0, -10, 10)
@@ -461,8 +475,10 @@ $synth.Dispose()
 
   try {
     await runProcess('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script])
+    return { duration: await readWavDurationSeconds(outputPath, duration) }
   } catch {
     await makeSilence(ffmpegPath, outputPath, duration)
+    return { duration }
   }
 }
 
@@ -477,20 +493,71 @@ async function synthesizeWithAquesTalkPlayer(text: string, speaker: CharacterPro
     throw new Error('AquesTalkPlayer.exe が未設定です。Inspector の Voice から選択してください。')
   }
 
-  await validateAquesTalkPlayerPath(exePath)
+  const resolvedExePath = await validateAquesTalkPlayerPath(exePath)
   await mkdir(path.dirname(outputPath), { recursive: true })
-  const args: string[] = []
-  const preset = speaker.voice.aquestalkPreset?.trim()
-  if (preset) {
-    args.push('/P', preset)
-  }
-  args.push('/T', text, '/W', outputPath)
-  await runProcess(exePath, args)
+  const args = ['/P', normalizeAquesTalkPreset(speaker.voice.aquestalkPreset), '/T', text, '/W', path.resolve(outputPath)]
+  await runAquesTalkPlayer(resolvedExePath, args)
 
   const result = await stat(outputPath).catch(() => undefined)
   if (!result || result.size === 0) {
-    throw new Error('AquesTalkPlayer の WAV 出力が作成されませんでした。プリセット名とライセンス設定を確認してください。')
+    throw new Error(
+      `AquesTalkPlayer の WAV 出力が作成されませんでした。preset=${normalizeAquesTalkPreset(
+        speaker.voice.aquestalkPreset,
+      )} とライセンス設定を確認してください。`,
+    )
   }
+}
+
+async function runAquesTalkPlayer(exePath: string, args: string[]) {
+  const script = `
+$ErrorActionPreference = 'Stop'
+$process = Start-Process -FilePath ${powerShellString(exePath)} -WorkingDirectory ${powerShellString(
+    path.dirname(exePath),
+  )} -ArgumentList @(${args.map(powerShellString).join(', ')}) -Wait -PassThru -WindowStyle Hidden
+exit $process.ExitCode
+`
+  try {
+    await runProcess('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script])
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`AquesTalkPlayer の同期実行に失敗しました: ${message}`, { cause: error })
+  }
+}
+
+async function readWavDurationSeconds(filePath: string, fallback: number) {
+  try {
+    const buffer = await readFile(filePath)
+    if (buffer.length < 44 || buffer.toString('ascii', 0, 4) !== 'RIFF' || buffer.toString('ascii', 8, 12) !== 'WAVE') {
+      return fallback
+    }
+
+    let offset = 12
+    let byteRate = 0
+    let dataBytes = 0
+
+    while (offset + 8 <= buffer.length) {
+      const chunkId = buffer.toString('ascii', offset, offset + 4)
+      const chunkSize = buffer.readUInt32LE(offset + 4)
+      const chunkStart = offset + 8
+
+      if (chunkId === 'fmt ' && chunkSize >= 16 && chunkStart + 12 <= buffer.length) {
+        byteRate = buffer.readUInt32LE(chunkStart + 8)
+      } else if (chunkId === 'data') {
+        dataBytes = Math.min(chunkSize, Math.max(0, buffer.length - chunkStart))
+        break
+      }
+
+      offset = chunkStart + chunkSize + (chunkSize % 2)
+    }
+
+    if (byteRate > 0 && dataBytes > 0) {
+      return normalizeDuration(dataBytes / byteRate)
+    }
+  } catch {
+    // Fallback keeps legacy SAPI/silence behavior available if duration parsing fails.
+  }
+
+  return fallback
 }
 
 async function renderFrame(
@@ -515,22 +582,25 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
       const active = character.id === shot.speakerId
       const emotion = active ? (shot.emotion ?? character.defaultEmotion ?? 'neutral') : 'neutral'
       const asset = await readCharacterAsset(character, emotion)
-      const focusScale = shot.layout === 'solo-center' || (shot.layout === 'left-focus' && character.side === 'left') || (shot.layout === 'right-focus' && character.side === 'right')
+      const focusScale =
+        shot.layout === 'solo-center' ||
+        (shot.layout === 'left-focus' && character.side === 'left') ||
+        (shot.layout === 'right-focus' && character.side === 'right')
       const muted = (shot.layout === 'left-focus' && character.side === 'right') || (shot.layout === 'right-focus' && character.side === 'left')
-      const size = Math.round(width * (focusScale ? 0.26 : 0.21))
+      const size = Math.round(width * (focusScale ? 0.19 : 0.15))
       const x = shot.layout === 'solo-center'
         ? Math.round(width / 2 - size / 2)
         : character.side === 'left'
-          ? Math.round(width * 0.08)
-          : Math.round(width - width * 0.08 - size)
-      const y = Math.round(height * (focusScale ? 0.42 : 0.48))
+          ? Math.round(width * 0.055)
+          : Math.round(width - width * 0.055 - size)
+      const y = Math.round(height * (focusScale ? 0.55 : 0.6))
       const opacity = muted ? 0.64 : 1
 
       return `
         <g opacity="${opacity}">
           <image href="data:${asset.mime};base64,${asset.data}" x="${x}" y="${y}" width="${size}" height="${size}" />
-          <rect x="${x + size * 0.33}" y="${y + size * 0.91}" width="${size * 0.34}" height="${size * 0.07}" rx="${size * 0.035}" fill="rgba(4,8,13,.72)" stroke="rgba(255,255,255,.22)"/>
-          <text x="${x + size * 0.5}" y="${y + size * 0.956}" fill="#f5f8fc" font-size="${Math.round(size * 0.04)}" font-weight="800" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(character.name)}</text>
+          <rect x="${x + size * 0.31}" y="${y + size * 0.89}" width="${size * 0.38}" height="${size * 0.08}" rx="${size * 0.025}" fill="rgba(255,255,255,.88)" stroke="rgba(12,16,20,.42)" stroke-width="2"/>
+          <text x="${x + size * 0.5}" y="${y + size * 0.945}" fill="#17202a" font-size="${Math.round(size * 0.045)}" font-weight="900" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(character.name)}</text>
         </g>`
     }),
   )
@@ -538,33 +608,43 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
   const visual = shot.visuals?.[0]
   const caption = shot.caption?.text ?? shot.text
   const captionLines = wrapJapanese(caption, 34)
-  const bg = backgroundSvg(background, width, height)
+  const bg = await backgroundSvg(background, width, height)
   const visualSvg = visual ? renderVisual(visual, width, height) : ''
-  const subtitleY = Math.round(height * 0.84)
+  const subtitleY = Math.round(height * 0.83)
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
-    <filter id="shadow"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity=".32"/></filter>
-    <filter id="captionShadow"><feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#000" flood-opacity=".65"/></filter>
+    <filter id="shadow"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity=".26"/></filter>
   </defs>
   ${bg}
   ${visualSvg}
   <g filter="url(#shadow)">
     ${characterLayers.join('\n')}
   </g>
-  <rect x="${Math.round(width * 0.07)}" y="${Math.round(height * 0.745)}" width="${Math.round(width * 0.86)}" height="${Math.round(height * 0.2)}" rx="18" fill="rgba(4,8,13,.88)" stroke="rgba(255,255,255,.24)" stroke-width="3"/>
-  <text x="${Math.round(width * 0.095)}" y="${Math.round(height * 0.793)}" fill="#ffbe45" font-size="28" font-weight="850" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(speaker.name)}</text>
-  <text x="${Math.round(width * 0.095)}" y="${subtitleY}" fill="#ffffff" filter="url(#captionShadow)" font-size="42" font-weight="850" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
-    ${captionLines.map((line, index) => `<tspan x="${Math.round(width * 0.095)}" dy="${index === 0 ? 0 : 56}">${escapeXml(line)}</tspan>`).join('\n')}
+  <rect x="${Math.round(width * 0.055)}" y="${Math.round(height * 0.755)}" width="${Math.round(width * 0.89)}" height="${Math.round(height * 0.17)}" rx="14" fill="rgba(255,255,255,.72)" stroke="rgba(9,13,17,.22)" stroke-width="3"/>
+  <rect x="${Math.round(width * 0.072)}" y="${Math.round(height * 0.727)}" width="${Math.round(width * 0.12)}" height="${Math.round(height * 0.045)}" rx="10" fill="#10151b" stroke="#ffffff" stroke-opacity=".65" stroke-width="2"/>
+  <text x="${Math.round(width * 0.132)}" y="${Math.round(height * 0.758)}" fill="#ffcc4d" font-size="25" font-weight="900" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(speaker.name)}</text>
+  <text x="${Math.round(width * 0.082)}" y="${subtitleY}" fill="#ffffff" stroke="#11151a" stroke-width="9" paint-order="stroke fill" font-size="45" font-weight="900" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
+    ${captionLines.map((line, index) => `<tspan x="${Math.round(width * 0.082)}" dy="${index === 0 ? 0 : 58}">${escapeXml(line)}</tspan>`).join('\n')}
   </text>
 </svg>`
 }
 
-function backgroundSvg(background: SceneBackground, width: number, height: number) {
+async function backgroundSvg(background: SceneBackground, width: number, height: number) {
   const from = background.from ?? background.color ?? '#101827'
   const to = background.to ?? background.color ?? '#1f2a44'
   const accent = background.accent ?? '#35d0ff'
+
+  if (background.type === 'asset') {
+    const assetName = background.asset ?? 'classroom-board'
+    const filePath = path.join(assetRoot(), 'backgrounds', `${assetName}.svg`)
+    const svg = await readFile(filePath, 'utf8')
+    return `
+      <image href="data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/>
+      <rect width="${width}" height="${height}" fill="rgba(255,255,255,.03)"/>
+    `
+  }
 
   if (background.type === 'solid') {
     return `<rect width="${width}" height="${height}" fill="${escapeXml(background.color ?? '#101827')}"/>`
@@ -580,33 +660,30 @@ function backgroundSvg(background: SceneBackground, width: number, height: numbe
         <stop offset="0" stop-color="${escapeXml(from)}"/>
         <stop offset="1" stop-color="${escapeXml(to)}"/>
       </linearGradient>
-      <radialGradient id="accent" cx="78%" cy="82%" r="52%">
-        <stop offset="0" stop-color="${escapeXml(accent)}" stop-opacity=".35"/>
-        <stop offset="1" stop-color="${escapeXml(accent)}" stop-opacity="0"/>
-      </radialGradient>
     </defs>
     <rect width="${width}" height="${height}" fill="url(#bg)"/>
-    <rect width="${width}" height="${height}" fill="url(#accent)"/>
+    <path d="M0 ${Math.round(height * 0.78)}C${Math.round(width * 0.28)} ${Math.round(height * 0.71)} ${Math.round(width * 0.56)} ${Math.round(height * 0.86)} ${width} ${Math.round(height * 0.76)}V${height}H0Z" fill="${escapeXml(accent)}" opacity=".12"/>
     ${grid}
   `
 }
 
 function renderVisual(visual: NonNullable<Shot['visuals']>[number], width: number, height: number) {
-  const x = Math.round(width * 0.64)
+  const x = Math.round(width * 0.56)
   const y = Math.round(height * 0.08)
-  const boxWidth = Math.round(width * 0.28)
-  const boxHeight = Math.round(height * 0.25)
-  const bodyLines = wrapJapanese(visual.body ?? '', 20)
+  const boxWidth = Math.round(width * 0.37)
+  const boxHeight = Math.round(height * 0.24)
+  const bodyLines = wrapJapanese(visual.body ?? '', 22)
   const itemLines = visual.items ?? []
 
   return `
     <g>
-      <rect x="${x}" y="${y}" width="${boxWidth}" height="${boxHeight}" rx="16" fill="rgba(8,14,20,.78)" stroke="rgba(255,255,255,.20)" stroke-width="2"/>
-      <text x="${x + 30}" y="${y + 48}" fill="#ffbe45" font-size="21" font-weight="850" font-family="Cascadia Mono, Consolas, monospace">${escapeXml(visual.type.toUpperCase())}</text>
-      <text x="${x + 30}" y="${y + 94}" fill="#ffffff" font-size="34" font-weight="850" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(visual.title)}</text>
-      <text x="${x + 30}" y="${y + 142}" fill="#d5e2ef" font-size="24" font-weight="650" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
-        ${bodyLines.map((line, index) => `<tspan x="${x + 30}" dy="${index === 0 ? 0 : 34}">${escapeXml(line)}</tspan>`).join('\n')}
-        ${itemLines.map((line, index) => `<tspan x="${x + 30}" dy="${bodyLines.length === 0 && index === 0 ? 0 : 34}">- ${escapeXml(line)}</tspan>`).join('\n')}
+      <rect x="${x}" y="${y}" width="${boxWidth}" height="${boxHeight}" rx="12" fill="rgba(255,255,255,.86)" stroke="rgba(9,13,17,.22)" stroke-width="3"/>
+      <rect x="${x}" y="${y}" width="${boxWidth}" height="54" rx="12" fill="#10151b"/>
+      <text x="${x + 28}" y="${y + 36}" fill="#ffcc4d" font-size="22" font-weight="900" font-family="Cascadia Mono, Consolas, monospace">${escapeXml(visual.type.toUpperCase())}</text>
+      <text x="${x + 28}" y="${y + 95}" fill="#11151a" font-size="35" font-weight="900" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(visual.title)}</text>
+      <text x="${x + 28}" y="${y + 142}" fill="#27313c" font-size="25" font-weight="750" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
+        ${bodyLines.map((line, index) => `<tspan x="${x + 28}" dy="${index === 0 ? 0 : 34}">${escapeXml(line)}</tspan>`).join('\n')}
+        ${itemLines.map((line, index) => `<tspan x="${x + 28}" dy="${bodyLines.length === 0 && index === 0 ? 0 : 34}">- ${escapeXml(line)}</tspan>`).join('\n')}
       </text>
     </g>`
 }
@@ -642,25 +719,34 @@ function settingsPath() {
 }
 
 async function readVoiceSettings(): Promise<VoiceEngineSettings> {
+  let savedPath: string | undefined
+  let updatedAt: string | undefined
+
   try {
     const content = await readFile(settingsPath(), 'utf8')
     const parsed = JSON.parse(content) as VoiceEngineSettings
-    return {
-      aquestalkPlayerPath:
-        typeof parsed.aquestalkPlayerPath === 'string' && parsed.aquestalkPlayerPath.trim()
-          ? parsed.aquestalkPlayerPath
-          : undefined,
-      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : undefined,
-    }
+    savedPath =
+      typeof parsed.aquestalkPlayerPath === 'string' && parsed.aquestalkPlayerPath.trim()
+        ? parsed.aquestalkPlayerPath
+        : undefined
+    updatedAt = typeof parsed.updatedAt === 'string' ? parsed.updatedAt : undefined
   } catch {
-    return {}
+    savedPath = undefined
+  }
+
+  return {
+    aquestalkPlayerPath: await findAquesTalkPlayerPath(savedPath),
+    updatedAt,
   }
 }
 
 async function saveVoiceSettings(settings: VoiceEngineSettings) {
   await mkdir(app.getPath('userData'), { recursive: true })
+  const resolved = settings.aquestalkPlayerPath
+    ? await validateAquesTalkPlayerPath(settings.aquestalkPlayerPath)
+    : undefined
   const normalized: VoiceEngineSettings = {
-    aquestalkPlayerPath: settings.aquestalkPlayerPath,
+    aquestalkPlayerPath: resolved,
     updatedAt: settings.updatedAt ?? new Date().toISOString(),
   }
   await writeFile(settingsPath(), JSON.stringify(normalized, null, 2), 'utf8')
@@ -677,6 +763,29 @@ async function validateAquesTalkPlayerPath(exePath: string) {
   if (path.basename(resolved).toLowerCase() !== 'aquestalkplayer.exe') {
     throw new Error('安全のため、ファイル名が AquesTalkPlayer.exe の実行ファイルだけを受け付けます。')
   }
+
+  return resolved
+}
+
+async function findAquesTalkPlayerPath(savedPath?: string) {
+  const candidates = [
+    savedPath,
+    process.env.AQUESTALK_PLAYER_PATH,
+    ...bundledAquesTalkPlayerCandidates,
+    path.join(app.getPath('downloads'), 'aquestalkplayer_20250606', 'aquestalkplayer', 'AquesTalkPlayer.exe'),
+    path.join(app.getPath('home'), 'Download', 'aquestalkplayer_20250606', 'aquestalkplayer', 'AquesTalkPlayer.exe'),
+    path.join(app.getPath('home'), 'Downloads', 'aquestalkplayer_20250606', 'aquestalkplayer', 'AquesTalkPlayer.exe'),
+  ].filter((candidate): candidate is string => Boolean(candidate?.trim()))
+
+  for (const candidate of candidates) {
+    try {
+      return await validateAquesTalkPlayerPath(candidate)
+    } catch {
+      // Try the next known safe location.
+    }
+  }
+
+  return undefined
 }
 
 function resolveCustomAssetPath(asset: CustomCharacterAsset) {
@@ -838,6 +947,13 @@ function percent(step: number, total: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
+}
+
+function normalizeDuration(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return 1
+  }
+  return Math.round(value * 100) / 100
 }
 
 function voiceEngineLabel(engine: CharacterProfile['voice']['engine']) {

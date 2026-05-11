@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Pause, Play, Square } from 'lucide-react'
-import { characterImageSource } from '../lib/assets'
+import { backgroundAssetUrl, characterImageSource } from '../lib/assets'
 import { formatDuration } from '../lib/scriptSchema'
 import type { CharacterProfile, SceneBackground, Shot, YukkuriProject } from '../types/script'
 
@@ -43,7 +43,11 @@ export function PreviewStage({
         </div>
         <span>{project.project.resolution.width} x {project.project.resolution.height}</span>
       </div>
-      <section className="stage" style={stageStyle(background)} aria-label="video preview">
+      <section
+        className={`stage stage-${background.type} ${background.type === 'asset' ? `stage-asset-${background.asset ?? 'classroom-board'}` : ''}`}
+        style={stageStyle(background)}
+        aria-label="video preview"
+      >
         <div className="stage-grid" />
         <div className="stage-playhead" style={{ width: `${Math.round(shotProgress * 100)}%` }} />
         <VisualCueCard shot={shot} progress={shotProgress} />
@@ -167,9 +171,19 @@ function escapeRegExp(value: string) {
 }
 
 function stageStyle(background: SceneBackground) {
+  if (background.type === 'asset') {
+    return {
+      backgroundImage: `url("${backgroundAssetUrl(background.asset ?? 'classroom-board')}")`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      '--stage-accent': background.accent ?? '#35d0ff',
+    } as CSSProperties
+  }
+
   if (background.type === 'solid') {
     return {
       background: background.color ?? '#101827',
+      '--stage-accent': background.accent ?? '#35d0ff',
     }
   }
 

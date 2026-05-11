@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#111b35"/>
+      <stop offset=".58" stop-color="#243a66"/>
+      <stop offset="1" stop-color="#e0b46a"/>
+    </linearGradient>
+    <pattern id="window" width="42" height="54" patternUnits="userSpaceOnUse">
+      <rect x="10" y="12" width="12" height="18" rx="2" fill="#ffe6a3" opacity=".52"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <path d="M0 720h140V520h180v200h170V430h210v290h130V560h190v160h170V390h230v330h150V500h190v220h160v360H0z" fill="#121a27"/>
+  <path d="M0 720h140V520h180v200h170V430h210v290h130V560h190v160h170V390h230v330h150V500h190v220h160v360H0z" fill="url(#window)" opacity=".52"/>
+  <path d="M0 792c360-80 610-70 882 8 300 86 632 84 1038-22v302H0z" fill="#09101b" opacity=".68"/>
+</svg>

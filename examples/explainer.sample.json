@@ -10,34 +10,36 @@
       "height": 1080
     },
     "theme": {
-      "palette": "studio-dark",
+      "palette": "paper-light",
       "subtitleStyle": "pop",
       "bgm": "none"
     }
   },
   "characters": [
     {
-      "id": "akari",
-      "name": "あかり",
-      "asset": "akari",
+      "id": "reimu",
+      "name": "霊夢",
+      "asset": "reimu",
       "defaultEmotion": "happy",
       "side": "left",
       "voice": {
-        "engine": "windows-sapi",
-        "rate": 1,
-        "volume": 95
+        "engine": "aquestalk-player",
+        "aquestalkPreset": "れいむ",
+        "rate": 0,
+        "volume": 100
       }
     },
     {
-      "id": "kohaku",
-      "name": "こはく",
-      "asset": "kohaku",
+      "id": "marisa",
+      "name": "魔理沙",
+      "asset": "marisa",
       "defaultEmotion": "thinking",
       "side": "right",
       "voice": {
-        "engine": "windows-sapi",
+        "engine": "aquestalk-player",
+        "aquestalkPreset": "まりさ",
         "rate": 0,
-        "volume": 92
+        "volume": 100
       }
     }
   ],
@@ -47,15 +49,15 @@
       "title": "導入",
       "summary": "JSON 台本から動画を作れることを提示する。",
       "background": {
-        "type": "grid",
-        "from": "#101827",
-        "to": "#1f2a44",
-        "accent": "#35d0ff"
+        "type": "asset",
+        "asset": "classroom-board",
+        "label": "黒板教室",
+        "accent": "#2f8f70"
       },
       "shots": [
         {
           "id": "shot-01",
-          "speakerId": "akari",
+          "speakerId": "reimu",
           "text": "今回は、LLM が作った JSON 台本をそのまま読み込んで、ゆっくり解説動画にする流れを見ていくよ。",
           "duration": 5.2,
           "emotion": "happy",
@@ -73,7 +75,7 @@
         },
         {
           "id": "shot-02",
-          "speakerId": "kohaku",
+          "speakerId": "marisa",
           "text": "ポイントは、動画編集の判断を JSON に閉じ込めること。あとから人間が直しやすいのも大事だね。",
           "duration": 5.8,
           "emotion": "thinking",
@@ -96,15 +98,15 @@
       "title": "生成フロー",
       "summary": "読み込みから書き出しまでの処理を説明する。",
       "background": {
-        "type": "gradient",
-        "from": "#15202b",
-        "to": "#293247",
-        "accent": "#ffbe45"
+        "type": "asset",
+        "asset": "news-desk",
+        "label": "ニュース机",
+        "accent": "#3158a8"
       },
       "shots": [
         {
           "id": "shot-03",
-          "speakerId": "akari",
+          "speakerId": "reimu",
           "text": "アプリは JSON を検証して、タイムライン、字幕、音声、画像フレームを一気につなげるよ。",
           "duration": 5.4,
           "emotion": "surprised",
@@ -122,8 +124,8 @@
         },
         {
           "id": "shot-04",
-          "speakerId": "kohaku",
-          "text": "Windows では標準の音声合成を使って、最後に FFmpeg で MP4 として書き出す構成にしているよ。",
+          "speakerId": "marisa",
+          "text": "Windows では AquesTalkPlayer を標準にして、最後に FFmpeg で音声付き MP4 として書き出す構成にしているぜ。",
           "duration": 5.6,
           "emotion": "happy",
           "layout": "duo",

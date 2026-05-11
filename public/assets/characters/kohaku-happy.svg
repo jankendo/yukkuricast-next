@@ -11,27 +11,27 @@
     </filter>
   </defs>
   <g filter="url(#softShadow)">
-    
+
       <g transform="translate(300 84) rotate(-6)">
         <ellipse cx="0" cy="66" rx="220" ry="42" fill="#23202d" stroke="#090810" stroke-width="12"/>
         <path d="M-120 58C-98-76 98-76 120 58Z" fill="#2e2a3a" stroke="#090810" stroke-width="12"/>
         <path d="M-96 30h192l22 36H-118Z" fill="#fff2a8" stroke="#846a28" stroke-width="8"/>
       </g>
-    
+
     <path d="M82 272C75 143 166 68 300 68s225 75 218 204c-31-56-86-92-158-114 0 0 24 58 18 92-38-70-90-108-156-126 9 48-14 102-64 146 4-61-24-98-76-118z"
       fill="#f3c35c" stroke="#17151a" stroke-width="12" stroke-linejoin="round"/>
     <path d="M140 186c84-62 184-78 304-12-70-28-146-16-228 34-38 23-61 45-76 66 0-30 0-58 0-88z"
       fill="#ffe39a" opacity=".42"/>
-  
+
     <ellipse cx="300" cy="320" rx="236" ry="210" fill="url(#skin)" stroke="#17151a" stroke-width="12"/>
     <path d="M116 306c32 15 64 15 96 0M388 306c32 15 64 15 96 0" fill="none" stroke="#d49b80" stroke-width="8" stroke-linecap="round" opacity=".35"/>
     <ellipse cx="190" cy="326" rx="52" ry="24" fill="#ffb28e" opacity=".6"/>
     <ellipse cx="410" cy="326" rx="52" ry="24" fill="#ffb28e" opacity=".6"/>
     <g fill="none" stroke="#17151a" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
-      
+
       <path d="M165 258c25-36 62-36 88 0" /><path d="M347 258c25-36 62-36 88 0" />
       <path d="M266 348c44 54 88 54 132 0" />
-      
+
     </g>
     <path d="M104 418c54 82 130 122 232 114 72-6 126-34 162-84-41 76-107 122-198 126-98 3-169-48-196-156z" fill="#fff0ba" opacity=".26"/>
   </g>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="wall" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#f2eadb"/>
+      <stop offset="1" stop-color="#dfd4bf"/>
+    </linearGradient>
+    <linearGradient id="board" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#1f5b4c"/>
+      <stop offset="1" stop-color="#163c35"/>
+    </linearGradient>
+    <pattern id="chalk" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M0 18h64M18 0v64" stroke="#ffffff" stroke-opacity=".035" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#wall)"/>
+  <rect x="120" y="94" width="1680" height="670" rx="18" fill="#6b4d2f"/>
+  <rect x="148" y="122" width="1624" height="614" rx="10" fill="url(#board)"/>
+  <rect x="148" y="122" width="1624" height="614" rx="10" fill="url(#chalk)"/>
+  <path d="M230 220h360M230 302h520M230 384h430" stroke="#d8efe4" stroke-opacity=".42" stroke-width="12" stroke-linecap="round"/>
+  <path d="M1180 218h420M1180 304h330M1180 390h460" stroke="#f4e3a1" stroke-opacity=".38" stroke-width="10" stroke-linecap="round"/>
+  <rect x="0" y="764" width="1920" height="316" fill="#c9b187"/>
+  <path d="M0 842h1920M0 940h1920M280 764v316M620 764v316M960 764v316M1300 764v316M1640 764v316" stroke="#a98d62" stroke-opacity=".34" stroke-width="4"/>
+</svg>

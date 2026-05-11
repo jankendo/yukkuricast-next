@@ -5,6 +5,24 @@ const outDir = path.resolve('public/assets/characters')
 const bgDir = path.resolve('public/assets/backgrounds')
 
 const characters = {
+  reimu: {
+    skin: '#ffe8d5',
+    blush: '#ff9fae',
+    hair: '#292026',
+    hairLight: '#51343f',
+    accessory: 'ribbon',
+    accessoryColor: '#d82242',
+    accent: '#ffdbe4',
+  },
+  marisa: {
+    skin: '#ffe6cb',
+    blush: '#ffb28e',
+    hair: '#f1c55e',
+    hairLight: '#ffe59b',
+    accessory: 'hat',
+    accessoryColor: '#211f2c',
+    accent: '#fff0ba',
+  },
   akari: {
     skin: '#ffe8d5',
     blush: '#ff9fae',
@@ -134,6 +152,13 @@ function faceSvg(character, emotionName, expression) {
 </svg>`
 }
 
+function cleanSvg(svg) {
+  return svg
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
+}
+
 function studioGridSvg() {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
@@ -161,17 +186,109 @@ function paperLightSvg() {
 </svg>`
 }
 
+function classroomBoardSvg() {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="wall" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#f2eadb"/>
+      <stop offset="1" stop-color="#dfd4bf"/>
+    </linearGradient>
+    <linearGradient id="board" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#1f5b4c"/>
+      <stop offset="1" stop-color="#163c35"/>
+    </linearGradient>
+    <pattern id="chalk" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M0 18h64M18 0v64" stroke="#ffffff" stroke-opacity=".035" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#wall)"/>
+  <rect x="120" y="94" width="1680" height="670" rx="18" fill="#6b4d2f"/>
+  <rect x="148" y="122" width="1624" height="614" rx="10" fill="url(#board)"/>
+  <rect x="148" y="122" width="1624" height="614" rx="10" fill="url(#chalk)"/>
+  <path d="M230 220h360M230 302h520M230 384h430" stroke="#d8efe4" stroke-opacity=".42" stroke-width="12" stroke-linecap="round"/>
+  <path d="M1180 218h420M1180 304h330M1180 390h460" stroke="#f4e3a1" stroke-opacity=".38" stroke-width="10" stroke-linecap="round"/>
+  <rect x="0" y="764" width="1920" height="316" fill="#c9b187"/>
+  <path d="M0 842h1920M0 940h1920M280 764v316M620 764v316M960 764v316M1300 764v316M1640 764v316" stroke="#a98d62" stroke-opacity=".34" stroke-width="4"/>
+</svg>`
+}
+
+function newsDeskSvg() {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#e9f1fb"/>
+      <stop offset=".56" stop-color="#cdddf1"/>
+      <stop offset="1" stop-color="#aebfd8"/>
+    </linearGradient>
+    <linearGradient id="desk" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d9e3ef"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect x="112" y="86" width="1696" height="560" rx="24" fill="#20324c" opacity=".9"/>
+  <rect x="154" y="126" width="770" height="220" rx="16" fill="#f9fbff" opacity=".92"/>
+  <rect x="996" y="126" width="770" height="220" rx="16" fill="#f9fbff" opacity=".92"/>
+  <path d="M210 246h460M1048 246h420M1048 306h320" stroke="#3158a8" stroke-width="16" stroke-linecap="round" opacity=".72"/>
+  <path d="M210 306h560" stroke="#e1a12b" stroke-width="14" stroke-linecap="round" opacity=".72"/>
+  <path d="M0 650h1920v430H0z" fill="#edf4fb"/>
+  <path d="M290 736h1340c94 0 170 76 170 170v174H120V906c0-94 76-170 170-170z" fill="url(#desk)" stroke="#9eb0c4" stroke-width="5"/>
+  <path d="M550 800h820" stroke="#3158a8" stroke-width="18" stroke-linecap="round" opacity=".38"/>
+</svg>`
+}
+
+function tatamiRoomSvg() {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="#f4ead7"/>
+  <rect x="0" y="0" width="1920" height="630" fill="#efe1c8"/>
+  <rect x="126" y="92" width="560" height="470" fill="#f8f6ed" stroke="#9c7d55" stroke-width="12"/>
+  <path d="M312 92v470M500 92v470M126 248h560M126 406h560" stroke="#c7b18e" stroke-width="7"/>
+  <rect x="1234" y="96" width="560" height="462" fill="#f7f4e9" stroke="#866b48" stroke-width="12"/>
+  <path d="M1420 96v462M1608 96v462M1234 250h560M1234 404h560" stroke="#c7b18e" stroke-width="7"/>
+  <rect x="0" y="630" width="1920" height="450" fill="#b7c46d"/>
+  <path d="M0 720h1920M0 900h1920M240 630v450M640 630v450M1040 630v450M1440 630v450" stroke="#83924a" stroke-opacity=".55" stroke-width="6"/>
+  <ellipse cx="960" cy="728" rx="260" ry="44" fill="#6c4b30" opacity=".26"/>
+</svg>`
+}
+
+function nightCitySvg() {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#111b35"/>
+      <stop offset=".58" stop-color="#243a66"/>
+      <stop offset="1" stop-color="#e0b46a"/>
+    </linearGradient>
+    <pattern id="window" width="42" height="54" patternUnits="userSpaceOnUse">
+      <rect x="10" y="12" width="12" height="18" rx="2" fill="#ffe6a3" opacity=".52"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <path d="M0 720h140V520h180v200h170V430h210v290h130V560h190v160h170V390h230v330h150V500h190v220h160v360H0z" fill="#121a27"/>
+  <path d="M0 720h140V520h180v200h170V430h210v290h130V560h190v160h170V390h230v330h150V500h190v220h160v360H0z" fill="url(#window)" opacity=".52"/>
+  <path d="M0 792c360-80 610-70 882 8 300 86 632 84 1038-22v302H0z" fill="#09101b" opacity=".68"/>
+</svg>`
+}
+
 await mkdir(outDir, { recursive: true })
 await mkdir(bgDir, { recursive: true })
 
 for (const [characterName, character] of Object.entries(characters)) {
   for (const [emotionName, expression] of Object.entries(expressions)) {
     const filePath = path.join(outDir, `${characterName}-${emotionName}.svg`)
-    await writeFile(filePath, faceSvg(character, emotionName, expression), 'utf8')
+    await writeFile(filePath, cleanSvg(faceSvg(character, emotionName, expression)), 'utf8')
   }
 }
 
-await writeFile(path.join(bgDir, 'studio-grid.svg'), studioGridSvg(), 'utf8')
-await writeFile(path.join(bgDir, 'paper-light.svg'), paperLightSvg(), 'utf8')
+await writeFile(path.join(bgDir, 'studio-grid.svg'), cleanSvg(studioGridSvg()), 'utf8')
+await writeFile(path.join(bgDir, 'paper-light.svg'), cleanSvg(paperLightSvg()), 'utf8')
+await writeFile(path.join(bgDir, 'classroom-board.svg'), cleanSvg(classroomBoardSvg()), 'utf8')
+await writeFile(path.join(bgDir, 'news-desk.svg'), cleanSvg(newsDeskSvg()), 'utf8')
+await writeFile(path.join(bgDir, 'tatami-room.svg'), cleanSvg(tatamiRoomSvg()), 'utf8')
+await writeFile(path.join(bgDir, 'night-city.svg'), cleanSvg(nightCitySvg()), 'utf8')
 
 console.log(`Generated ${Object.keys(characters).length * Object.keys(expressions).length} character assets in ${outDir}`)

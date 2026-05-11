@@ -43,7 +43,7 @@
         "properties": {
           "id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
           "name": { "type": "string", "minLength": 1 },
-          "asset": { "enum": ["akari", "kohaku", "aoba", "custom"] },
+          "asset": { "enum": ["reimu", "marisa", "akari", "kohaku", "aoba", "custom"] },
           "customAsset": {
             "type": "object",
             "required": ["id", "label", "filePath"],
@@ -85,7 +85,11 @@
             "type": "object",
             "required": ["type"],
             "properties": {
-              "type": { "enum": ["gradient", "solid", "grid"] },
+              "type": { "enum": ["gradient", "solid", "grid", "asset"] },
+              "asset": {
+                "enum": ["studio-grid", "paper-light", "classroom-board", "news-desk", "tatami-room", "night-city"]
+              },
+              "label": { "type": "string" },
               "from": { "$ref": "#/$defs/color" },
               "to": { "$ref": "#/$defs/color" },
               "color": { "$ref": "#/$defs/color" },
