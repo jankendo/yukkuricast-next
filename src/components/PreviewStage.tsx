@@ -51,6 +51,7 @@ export function PreviewStage({
         <div className="stage-grid" />
         <div className="stage-playhead" style={{ width: `${Math.round(shotProgress * 100)}%` }} />
         <VisualCueCard shot={shot} progress={shotProgress} />
+        <MediaPlaceholders shot={shot} />
         <div className={`character-layer layout-${shot.layout ?? 'duo'}`}>
           {project.characters.map((character) => (
             <CharacterSprite
@@ -91,6 +92,30 @@ export function PreviewStage({
         <div className="audio-status">{audioStatus}</div>
       </div>
     </main>
+  )
+}
+
+function MediaPlaceholders({ shot }: { shot: Shot }) {
+  const assets =
+    shot.assets?.filter((asset) => asset.track === 'video' && ['placeholder', 'image', 'video'].includes(asset.type)) ?? []
+  if (assets.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="media-placeholder-layer" aria-label="shot media placeholders">
+      {assets.slice(0, 3).map((asset) => (
+        <div
+          key={asset.id}
+          className={`media-placeholder placeholder-${asset.position ?? 'main-left'}`}
+          style={{ opacity: asset.opacity ?? 1 }}
+        >
+          <span>差し替え画像</span>
+          <strong>{asset.label}</strong>
+          {asset.notes && <small>{asset.notes}</small>}
+        </div>
+      ))}
+    </div>
   )
 }
 

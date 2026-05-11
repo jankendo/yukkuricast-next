@@ -83,6 +83,10 @@ export function InspectorPanel({
             <dt>背景</dt>
             <dd>{background.type === 'asset' ? background.asset : background.type}</dd>
           </div>
+          <div>
+            <dt>素材</dt>
+            <dd>{shot.assets?.length ?? 0} items</dd>
+          </div>
         </dl>
       </section>
 
@@ -180,6 +184,22 @@ export function InspectorPanel({
         </button>
       </section>
 
+      {shot.assets && shot.assets.length > 0 && (
+        <section className="info-group compact">
+          <div className="group-heading">
+            <ImagePlus size={16} />
+            Timeline Assets
+          </div>
+          <div className="asset-chip-list">
+            {shot.assets.map((asset) => (
+              <span key={asset.id} title={asset.notes}>
+                {asset.track}: {asset.label}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="export-box">
         <div className="group-heading">
           <Download size={16} />
@@ -210,6 +230,14 @@ export function InspectorPanel({
           <div>
             <dt>テーマ</dt>
             <dd>{project.project.theme.palette}</dd>
+          </div>
+          <div>
+            <dt>GPU</dt>
+            <dd>{project.project.export?.gpuAcceleration ?? 'auto'}</dd>
+          </div>
+          <div>
+            <dt>音声</dt>
+            <dd>{project.project.export?.audioSampleRate ?? 48000}Hz / {project.project.export?.audioBitrate ?? '192k'}</dd>
           </div>
         </dl>
       </section>

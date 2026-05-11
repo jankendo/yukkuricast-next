@@ -30,6 +30,15 @@
             "subtitleStyle": { "enum": ["pop", "news", "minimal"] },
             "bgm": { "enum": ["none", "soft", "news", "tech"] }
           }
+        },
+        "export": {
+          "type": "object",
+          "properties": {
+            "gpuAcceleration": { "enum": ["auto", "off", "nvenc", "qsv", "amf"] },
+            "videoBitrate": { "type": "string", "pattern": "^\\d+(k|K|m|M)?$" },
+            "audioBitrate": { "type": "string", "pattern": "^\\d+(k|K|m|M)?$" },
+            "audioSampleRate": { "enum": [44100, 48000] }
+          }
         }
       }
     },
@@ -130,6 +139,10 @@
                     }
                   }
                 },
+                "assets": {
+                  "type": "array",
+                  "items": { "$ref": "#/$defs/timelineAsset" }
+                },
                 "notes": { "type": "string" }
               }
             }
@@ -142,6 +155,25 @@
     "color": {
       "type": "string",
       "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+    },
+    "timelineAsset": {
+      "type": "object",
+      "required": ["id", "type", "track", "label"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["placeholder", "image", "video", "audio", "telop", "effect"] },
+        "track": { "enum": ["video", "character", "voice", "telop", "effect"] },
+        "label": { "type": "string", "minLength": 1 },
+        "start": { "type": "number", "minimum": 0 },
+        "duration": { "type": "number", "minimum": 0.1, "maximum": 600 },
+        "source": { "type": "string", "minLength": 1 },
+        "placeholder": { "type": "boolean" },
+        "position": {
+          "enum": ["main-left", "main-center", "main-right", "top-left", "top-right", "lower-third", "fullscreen"]
+        },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "notes": { "type": "string" }
+      }
     }
   }
 }

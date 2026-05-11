@@ -16,6 +16,12 @@ export const sampleProject: YukkuriProject = {
       subtitleStyle: 'pop',
       bgm: 'none',
     },
+    export: {
+      gpuAcceleration: 'auto',
+      videoBitrate: '8M',
+      audioBitrate: '192k',
+      audioSampleRate: 48000,
+    },
   },
   characters: [
     {
@@ -74,6 +80,19 @@ export const sampleProject: YukkuriProject = {
               body: '台詞・表情・尺・背景・補足ビジュアルを構造化',
             },
           ],
+          assets: [
+            {
+              id: 'img-json-structure',
+              type: 'placeholder',
+              track: 'video',
+              label: '差し替え画像: JSON 台本の構造図',
+              start: 0.4,
+              duration: 4.2,
+              placeholder: true,
+              position: 'main-left',
+              notes: 'あとで図解PNGに差し替える',
+            },
+          ],
         },
         {
           id: 'shot-02',
@@ -90,6 +109,19 @@ export const sampleProject: YukkuriProject = {
               type: 'bullet',
               title: 'JSON に入れる情報',
               items: ['話者', '台詞', '表情', '秒数', '画面メモ'],
+            },
+          ],
+          assets: [
+            {
+              id: 'img-editor-notes',
+              type: 'placeholder',
+              track: 'video',
+              label: '差し替え画像: 編集メモ',
+              start: 0.6,
+              duration: 4,
+              placeholder: true,
+              position: 'top-left',
+              notes: '人間が直す前提の資料',
             },
           ],
         },
@@ -123,6 +155,19 @@ export const sampleProject: YukkuriProject = {
               items: ['JSON', 'Preview', 'Voice', 'Frames', 'MP4'],
             },
           ],
+          assets: [
+            {
+              id: 'img-pipeline',
+              type: 'placeholder',
+              track: 'video',
+              label: '差し替え画像: 生成パイプライン',
+              start: 0.4,
+              duration: 4.4,
+              placeholder: true,
+              position: 'main-left',
+              notes: '処理フロー図を配置',
+            },
+          ],
         },
         {
           id: 'shot-04',
@@ -139,6 +184,17 @@ export const sampleProject: YukkuriProject = {
               type: 'code',
               title: 'Export',
               body: 'script.json -> audio.wav + frame.png -> output.mp4',
+            },
+          ],
+          assets: [
+            {
+              id: 'effect-gpu-export',
+              type: 'effect',
+              track: 'effect',
+              label: 'GPU encoder auto',
+              start: 0.8,
+              duration: 3.6,
+              notes: 'NVENC/QSV/AMF を自動検出',
             },
           ],
         },

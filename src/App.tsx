@@ -167,10 +167,16 @@ function App() {
   }, [previewAudioCacheKey])
 
   useEffect(() => {
-    if (activeContext && !isPreviewPlaying) {
-      warmPreviewAudio(activeContext.id).catch(() => undefined)
+    if (!activeContext) {
+      return
     }
-  }, [activeContext, isPreviewPlaying, warmPreviewAudio])
+
+    warmPreviewAudio(activeContext.id).catch(() => undefined)
+    const nextShot = timedShots[activeContext.index + 1]
+    if (nextShot) {
+      warmPreviewAudio(nextShot.id).catch(() => undefined)
+    }
+  }, [activeContext, timedShots, warmPreviewAudio])
 
   useEffect(() => {
     if (!isPreviewPlaying) {
@@ -446,21 +452,30 @@ function App() {
     setPreviewAudioDurationState({ key: '', values: {} })
   }
 
-  function togglePreview() {
+  async function togglePreview() {
     if (duration <= 0) {
       return
     }
 
-    setIsPreviewPlaying((current) => {
-      const next = !current
-      if (next && previewTime >= duration) {
-        seekPreview(0)
-      }
-      if (next) {
-        setPlaybackRevision((revision) => revision + 1)
-      }
-      return next
-    })
+    if (isPreviewPlaying) {
+      setIsPreviewPlaying(false)
+      return
+    }
+
+    const startTime = previewTime >= duration ? 0 : previewTime
+    const startShot = getShotAtTime(project, startTime, previewAudioDurations)
+    if (previewTime >= duration) {
+      seekPreview(0)
+    }
+    if (startShot) {
+      setPreviewAudioStatus('音声長を確認中...')
+      await warmPreviewAudio(startShot.id).catch((error: unknown) => {
+        setPreviewAudioStatus(error instanceof Error ? error.message : String(error))
+      })
+    }
+
+    setPlaybackRevision((revision) => revision + 1)
+    setIsPreviewPlaying(true)
   }
 
   function stopPreview() {

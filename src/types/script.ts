@@ -25,6 +25,13 @@ export interface ProjectTheme {
   bgm?: 'none' | 'soft' | 'news' | 'tech'
 }
 
+export interface ProjectExportSettings {
+  gpuAcceleration?: 'auto' | 'off' | 'nvenc' | 'qsv' | 'amf'
+  videoBitrate?: string
+  audioBitrate?: string
+  audioSampleRate?: 44100 | 48000
+}
+
 export type VoiceEngine = 'windows-sapi' | 'aquestalk-player'
 
 export interface CharacterVoice {
@@ -76,6 +83,33 @@ export interface VisualCue {
   items?: string[]
 }
 
+export type TimelineAssetType = 'placeholder' | 'image' | 'video' | 'audio' | 'telop' | 'effect'
+
+export type TimelineTrackType = 'video' | 'character' | 'voice' | 'telop' | 'effect'
+
+export type TimelineAssetPosition =
+  | 'main-left'
+  | 'main-center'
+  | 'main-right'
+  | 'top-left'
+  | 'top-right'
+  | 'lower-third'
+  | 'fullscreen'
+
+export interface TimelineAsset {
+  id: string
+  type: TimelineAssetType
+  track: TimelineTrackType
+  label: string
+  start?: number
+  duration?: number
+  source?: string
+  placeholder?: boolean
+  position?: TimelineAssetPosition
+  opacity?: number
+  notes?: string
+}
+
 export interface Shot {
   id: string
   speakerId: string
@@ -85,6 +119,7 @@ export interface Shot {
   layout?: StageLayout
   caption?: CaptionSpec
   visuals?: VisualCue[]
+  assets?: TimelineAsset[]
   notes?: string
 }
 
@@ -105,6 +140,7 @@ export interface YukkuriProject {
     fps: number
     resolution: Resolution
     theme: ProjectTheme
+    export?: ProjectExportSettings
   }
   characters: CharacterProfile[]
   scenes: Scene[]

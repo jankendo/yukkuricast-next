@@ -5,6 +5,26 @@ const colorSchema = z
   .string()
   .regex(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i, '色は #rrggbb 形式で指定してください')
 
+const bitrateSchema = z
+  .string()
+  .regex(/^\d+(k|K|m|M)?$/, 'bitrate は 8000k や 8M のように指定してください')
+
+const timelineAssetSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(['placeholder', 'image', 'video', 'audio', 'telop', 'effect']),
+  track: z.enum(['video', 'character', 'voice', 'telop', 'effect']),
+  label: z.string().min(1),
+  start: z.number().min(0).optional(),
+  duration: z.number().min(0.1).max(600).optional(),
+  source: z.string().min(1).optional(),
+  placeholder: z.boolean().optional(),
+  position: z
+    .enum(['main-left', 'main-center', 'main-right', 'top-left', 'top-right', 'lower-third', 'fullscreen'])
+    .optional(),
+  opacity: z.number().min(0).max(1).optional(),
+  notes: z.string().optional(),
+})
+
 export const yukkuriProjectSchema = z.object({
   format: z.literal('yukkuricast-script'),
   version: z.literal('1.0'),
@@ -21,6 +41,14 @@ export const yukkuriProjectSchema = z.object({
       subtitleStyle: z.enum(['pop', 'news', 'minimal']),
       bgm: z.enum(['none', 'soft', 'news', 'tech']).optional(),
     }),
+    export: z
+      .object({
+        gpuAcceleration: z.enum(['auto', 'off', 'nvenc', 'qsv', 'amf']).optional(),
+        videoBitrate: bitrateSchema.optional(),
+        audioBitrate: bitrateSchema.optional(),
+        audioSampleRate: z.union([z.literal(44100), z.literal(48000)]).optional(),
+      })
+      .optional(),
   }),
   characters: z
     .array(
@@ -93,6 +121,7 @@ export const yukkuriProjectSchema = z.object({
                   }),
                 )
                 .optional(),
+              assets: z.array(timelineAssetSchema).optional(),
               notes: z.string().optional(),
             }),
           )

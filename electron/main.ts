@@ -13,6 +13,7 @@ import type {
   CharacterProfile,
   CustomCharacterAsset,
   ExportProgress,
+  ProjectExportSettings,
   SceneBackground,
   Shot,
   VoiceEngineSettings,
@@ -25,12 +26,26 @@ const allowedAssetExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg'
 const maxImportedAssetBytes = 20 * 1024 * 1024
 const settingsFileName = 'settings.json'
 const audioTailPaddingSeconds = 0.18
+const defaultAudioSampleRate = 48000
+const defaultAudioBitrate = '192k'
+const defaultVideoBitrate = '8M'
 const bundledAquesTalkPlayerCandidates = [
   'D:\\user\\Download\\aquestalkplayer_20250606\\aquestalkplayer\\AquesTalkPlayer.exe',
 ]
 
 interface AudioRenderResult {
   duration: number
+}
+
+type VideoEncoderMode = 'software' | 'nvenc' | 'qsv' | 'amf'
+
+interface RenderOptions {
+  encoder: VideoEncoderMode
+  codec: 'libx264' | 'h264_nvenc' | 'h264_qsv' | 'h264_amf'
+  label: string
+  videoBitrate: string
+  audioBitrate: string
+  audioSampleRate: 44100 | 48000
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -268,11 +283,14 @@ ipcMain.handle('voice:select-aquestalk-player', async () => {
 
 ipcMain.handle('preview:render-audio', async (_event, rawProject: YukkuriProject, shotId: string) => {
   const workspace = path.join(app.getPath('temp'), 'yukkuricast-next-preview', randomUUID())
-  const outputPath = path.join(workspace, `${safeFileName(shotId)}.wav`)
+  const rawOutputPath = path.join(workspace, `${safeFileName(shotId)}.raw.wav`)
+  const outputPath = path.join(workspace, `${safeFileName(shotId)}.preview.wav`)
 
   try {
     const project = yukkuriProjectSchema.parse(rawProject) as YukkuriProject
     assertSpeakerReferences(project)
+    const ffmpegPath = resolveFfmpegPath()
+    const audioSampleRate = project.project.export?.audioSampleRate ?? defaultAudioSampleRate
     const shot = getAllShots(project).find((candidate) => candidate.id === shotId)
     if (!shot) {
       throw new Error(`preview shot not found: ${shotId}`)
@@ -284,9 +302,10 @@ ipcMain.handle('preview:render-audio', async (_event, rawProject: YukkuriProject
     }
 
     await mkdir(workspace, { recursive: true })
-    const voice = await synthesizeVoice(shot.text, speaker, outputPath, shot.duration, resolveFfmpegPath())
-    const wav = await readFile(outputPath)
+    const voice = await synthesizeVoice(shot.text, speaker, rawOutputPath, shot.duration, ffmpegPath)
     const effectiveDuration = normalizeDuration(Math.max(shot.duration, voice.duration + audioTailPaddingSeconds))
+    await normalizeVoiceWav(ffmpegPath, rawOutputPath, outputPath, effectiveDuration, audioSampleRate)
+    const wav = await readFile(outputPath)
     return {
       ok: true,
       audioUrl: `data:audio/wav;base64,${wav.toString('base64')}`,
@@ -344,17 +363,20 @@ async function exportProject(
   const workspace = path.join(app.getPath('temp'), 'yukkuricast-next', randomUUID())
   const ffmpegPath = resolveFfmpegPath()
   const clips: string[] = []
-  const totalSteps = shots.length * 3 + 1
+  const totalSteps = shots.length * 4 + 2
   let step = 0
 
   await mkdir(workspace, { recursive: true })
   progress({ phase: 'prepare', message: `作業フォルダを作成しました: ${workspace}`, percent: 2 })
 
   try {
+    const renderOptions = await resolveRenderOptions(ffmpegPath, project.project.export, workspace, progress)
+
     for (let index = 0; index < shots.length; index += 1) {
       const shot = shots[index]
       const base = `${String(index + 1).padStart(3, '0')}-${safeFileName(shot.id)}`
-      const voicePath = path.join(workspace, `${base}.wav`)
+      const rawVoicePath = path.join(workspace, `${base}.raw.wav`)
+      const voicePath = path.join(workspace, `${base}.normalized.wav`)
       const framePath = path.join(workspace, `${base}.png`)
       const clipPath = path.join(workspace, `${base}.mp4`)
       const speaker = project.characters.find((character) => character.id === shot.speakerId)!
@@ -364,8 +386,15 @@ async function exportProject(
         message: `${shot.id}: ${voiceEngineLabel(speaker.voice.engine)} 音声を生成中`,
         percent: percent(++step, totalSteps),
       })
-      const voice = await synthesizeVoice(shot.text, speaker, voicePath, shot.duration, ffmpegPath)
+      const voice = await synthesizeVoice(shot.text, speaker, rawVoicePath, shot.duration, ffmpegPath)
       const clipDuration = normalizeDuration(Math.max(shot.duration, voice.duration + audioTailPaddingSeconds))
+
+      progress({
+        phase: 'voice',
+        message: `${shot.id}: 48kHz/stereo WAV に正規化中 (${clipDuration.toFixed(2)}s)`,
+        percent: percent(++step, totalSteps),
+      })
+      await normalizeVoiceWav(ffmpegPath, rawVoicePath, voicePath, clipDuration, renderOptions.audioSampleRate)
 
       progress({
         phase: 'frame',
@@ -379,19 +408,19 @@ async function exportProject(
         message:
           clipDuration > shot.duration + 0.05
             ? `${shot.id}: 音声尺に合わせて ${shot.duration.toFixed(2)}s -> ${clipDuration.toFixed(2)}s に延長`
-            : `${shot.id}: MP4 クリップを生成中`,
+            : `${shot.id}: MP4 クリップを生成中 (${renderOptions.label})`,
         percent: percent(++step, totalSteps),
       })
-      await makeClip(ffmpegPath, framePath, voicePath, clipDuration, project.project.fps, clipPath)
+      await makeClip(ffmpegPath, framePath, voicePath, clipDuration, project.project.fps, clipPath, renderOptions)
       clips.push(clipPath)
     }
 
     progress({
       phase: 'concat',
-      message: 'すべてのクリップを連結中',
+      message: 'すべてのクリップを連結し、AAC音声を連続タイムラインとして再生成中',
       percent: percent(step, totalSteps),
     })
-    await concatClips(ffmpegPath, clips, outputPath, workspace)
+    await concatClips(ffmpegPath, clips, outputPath, workspace, renderOptions)
 
     progress({
       phase: 'done',
@@ -453,7 +482,7 @@ async function synthesizeVoice(
   }
 
   if (process.platform !== 'win32') {
-    await makeSilence(ffmpegPath, outputPath, duration)
+    await makeSilence(ffmpegPath, outputPath, duration, defaultAudioSampleRate)
     return { duration }
   }
 
@@ -477,7 +506,7 @@ $synth.Dispose()
     await runProcess('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script])
     return { duration: await readWavDurationSeconds(outputPath, duration) }
   } catch {
-    await makeSilence(ffmpegPath, outputPath, duration)
+    await makeSilence(ffmpegPath, outputPath, duration, defaultAudioSampleRate)
     return { duration }
   }
 }
@@ -560,6 +589,43 @@ async function readWavDurationSeconds(filePath: string, fallback: number) {
   return fallback
 }
 
+async function normalizeVoiceWav(
+  ffmpegPath: string,
+  sourcePath: string,
+  outputPath: string,
+  duration: number,
+  sampleRate: 44100 | 48000,
+) {
+  const normalizedDuration = normalizeDuration(duration)
+  const filters = [
+    `aresample=${sampleRate}:async=1000:first_pts=0`,
+    'apad',
+    `atrim=0:${normalizedDuration.toFixed(3)}`,
+    'asetpts=N/SR/TB',
+  ]
+
+  if (normalizedDuration > 0.12) {
+    const fadeDuration = 0.035
+    filters.push(`afade=t=out:st=${Math.max(0, normalizedDuration - fadeDuration).toFixed(3)}:d=${fadeDuration}`)
+  }
+
+  await runProcess(ffmpegPath, [
+    '-y',
+    '-i',
+    sourcePath,
+    '-vn',
+    '-af',
+    filters.join(','),
+    '-ac',
+    '2',
+    '-ar',
+    String(sampleRate),
+    '-c:a',
+    'pcm_s16le',
+    outputPath,
+  ])
+}
+
 async function renderFrame(
   project: YukkuriProject,
   shot: Shot,
@@ -587,13 +653,13 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
         (shot.layout === 'left-focus' && character.side === 'left') ||
         (shot.layout === 'right-focus' && character.side === 'right')
       const muted = (shot.layout === 'left-focus' && character.side === 'right') || (shot.layout === 'right-focus' && character.side === 'left')
-      const size = Math.round(width * (focusScale ? 0.19 : 0.15))
+      const size = Math.round(width * (focusScale ? 0.16 : 0.13))
       const x = shot.layout === 'solo-center'
         ? Math.round(width / 2 - size / 2)
         : character.side === 'left'
-          ? Math.round(width * 0.055)
-          : Math.round(width - width * 0.055 - size)
-      const y = Math.round(height * (focusScale ? 0.55 : 0.6))
+          ? Math.round(width * 0.05)
+          : Math.round(width - width * 0.05 - size)
+      const y = Math.round(height * (focusScale ? 0.49 : 0.53))
       const opacity = muted ? 0.64 : 1
 
       return `
@@ -610,7 +676,8 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
   const captionLines = wrapJapanese(caption, 34)
   const bg = await backgroundSvg(background, width, height)
   const visualSvg = visual ? renderVisual(visual, width, height) : ''
-  const subtitleY = Math.round(height * 0.83)
+  const assetSvg = renderShotAssets(shot, width, height)
+  const subtitleY = Math.round(height * 0.82)
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -618,15 +685,16 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
     <filter id="shadow"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity=".26"/></filter>
   </defs>
   ${bg}
+  ${assetSvg}
   ${visualSvg}
   <g filter="url(#shadow)">
     ${characterLayers.join('\n')}
   </g>
-  <rect x="${Math.round(width * 0.055)}" y="${Math.round(height * 0.755)}" width="${Math.round(width * 0.89)}" height="${Math.round(height * 0.17)}" rx="14" fill="rgba(255,255,255,.72)" stroke="rgba(9,13,17,.22)" stroke-width="3"/>
-  <rect x="${Math.round(width * 0.072)}" y="${Math.round(height * 0.727)}" width="${Math.round(width * 0.12)}" height="${Math.round(height * 0.045)}" rx="10" fill="#10151b" stroke="#ffffff" stroke-opacity=".65" stroke-width="2"/>
-  <text x="${Math.round(width * 0.132)}" y="${Math.round(height * 0.758)}" fill="#ffcc4d" font-size="25" font-weight="900" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(speaker.name)}</text>
-  <text x="${Math.round(width * 0.082)}" y="${subtitleY}" fill="#ffffff" stroke="#11151a" stroke-width="9" paint-order="stroke fill" font-size="45" font-weight="900" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
-    ${captionLines.map((line, index) => `<tspan x="${Math.round(width * 0.082)}" dy="${index === 0 ? 0 : 58}">${escapeXml(line)}</tspan>`).join('\n')}
+  <rect x="${Math.round(width * 0.055)}" y="${Math.round(height * 0.765)}" width="${Math.round(width * 0.89)}" height="${Math.round(height * 0.16)}" rx="14" fill="rgba(255,255,255,.74)" stroke="rgba(9,13,17,.22)" stroke-width="3"/>
+  <rect x="${Math.round(width * 0.072)}" y="${Math.round(height * 0.735)}" width="${Math.round(width * 0.12)}" height="${Math.round(height * 0.043)}" rx="10" fill="#10151b" stroke="#ffffff" stroke-opacity=".65" stroke-width="2"/>
+  <text x="${Math.round(width * 0.132)}" y="${Math.round(height * 0.765)}" fill="#ffcc4d" font-size="24" font-weight="900" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(speaker.name)}</text>
+  <text x="${Math.round(width * 0.082)}" y="${subtitleY}" fill="#ffffff" stroke="#11151a" stroke-width="8" paint-order="stroke fill" font-size="40" font-weight="900" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
+    ${captionLines.map((line, index) => `<tspan x="${Math.round(width * 0.082)}" dy="${index === 0 ? 0 : 50}">${escapeXml(line)}</tspan>`).join('\n')}
   </text>
 </svg>`
 }
@@ -668,10 +736,10 @@ async function backgroundSvg(background: SceneBackground, width: number, height:
 }
 
 function renderVisual(visual: NonNullable<Shot['visuals']>[number], width: number, height: number) {
-  const x = Math.round(width * 0.56)
-  const y = Math.round(height * 0.08)
-  const boxWidth = Math.round(width * 0.37)
-  const boxHeight = Math.round(height * 0.24)
+  const x = Math.round(width * 0.59)
+  const y = Math.round(height * 0.07)
+  const boxWidth = Math.round(width * 0.34)
+  const boxHeight = Math.round(height * 0.23)
   const bodyLines = wrapJapanese(visual.body ?? '', 22)
   const itemLines = visual.items ?? []
 
@@ -686,6 +754,72 @@ function renderVisual(visual: NonNullable<Shot['visuals']>[number], width: numbe
         ${itemLines.map((line, index) => `<tspan x="${x + 28}" dy="${bodyLines.length === 0 && index === 0 ? 0 : 34}">- ${escapeXml(line)}</tspan>`).join('\n')}
       </text>
     </g>`
+}
+
+function renderShotAssets(shot: Shot, width: number, height: number) {
+  const assets = (shot.assets ?? []).filter(
+    (asset) => asset.track === 'video' && ['placeholder', 'image', 'video'].includes(asset.type),
+  )
+
+  return assets
+    .slice(0, 3)
+    .map((asset, index) => {
+      const box = assetBox(asset.position ?? 'main-left', width, height, index)
+      const labelLines = wrapJapanese(asset.label, 18)
+      const notesLines = wrapJapanese(asset.notes ?? '', 22).slice(0, 2)
+      const opacity = asset.opacity ?? 1
+
+      return `
+        <g opacity="${opacity}">
+          <rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" rx="14" fill="rgba(255,255,255,.66)" stroke="rgba(18,24,31,.42)" stroke-width="3" stroke-dasharray="14 10"/>
+          <path d="M${box.x + 22} ${box.y + box.height - 28}L${box.x + Math.round(box.width * 0.34)} ${box.y + Math.round(box.height * 0.58)}L${box.x + Math.round(box.width * 0.48)} ${box.y + Math.round(box.height * 0.72)}L${box.x + Math.round(box.width * 0.7)} ${box.y + Math.round(box.height * 0.46)}L${box.x + box.width - 24} ${box.y + box.height - 28}Z" fill="rgba(49,88,168,.18)"/>
+          <circle cx="${box.x + Math.round(box.width * 0.75)}" cy="${box.y + Math.round(box.height * 0.26)}" r="${Math.round(Math.min(box.width, box.height) * 0.07)}" fill="rgba(255,190,69,.46)"/>
+          <text x="${box.x + box.width / 2}" y="${box.y + Math.round(box.height * 0.38)}" fill="#3158a8" font-size="20" font-weight="900" text-anchor="middle" font-family="Cascadia Mono, Consolas, monospace">PLACEHOLDER</text>
+          <text x="${box.x + box.width / 2}" y="${box.y + Math.round(box.height * 0.53)}" fill="#142031" font-size="29" font-weight="900" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
+            ${labelLines.map((line, lineIndex) => `<tspan x="${box.x + box.width / 2}" dy="${lineIndex === 0 ? 0 : 36}">${escapeXml(line)}</tspan>`).join('\n')}
+          </text>
+          ${
+            notesLines.length > 0
+              ? `<text x="${box.x + box.width / 2}" y="${box.y + box.height - 26}" fill="#516171" font-size="20" font-weight="700" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(notesLines.join(' / '))}</text>`
+              : ''
+          }
+        </g>`
+    })
+    .join('\n')
+}
+
+function assetBox(position: NonNullable<Shot['assets']>[number]['position'], width: number, height: number, index: number) {
+  const large = {
+    width: Math.round(width * 0.31),
+    height: Math.round(height * 0.24),
+  }
+  const top = Math.round(height * (0.1 + index * 0.035))
+  const middle = Math.round(height * 0.13)
+
+  if (position === 'main-center') {
+    return { ...large, x: Math.round(width / 2 - large.width / 2), y: middle }
+  }
+  if (position === 'main-right' || position === 'top-right') {
+    return { ...large, x: Math.round(width * 0.62), y: position === 'top-right' ? top : middle }
+  }
+  if (position === 'lower-third') {
+    return {
+      x: Math.round(width * 0.26),
+      y: Math.round(height * 0.58),
+      width: Math.round(width * 0.48),
+      height: Math.round(height * 0.12),
+    }
+  }
+  if (position === 'fullscreen') {
+    return {
+      x: Math.round(width * 0.08),
+      y: Math.round(height * 0.08),
+      width: Math.round(width * 0.84),
+      height: Math.round(height * 0.58),
+    }
+  }
+
+  return { ...large, x: Math.round(width * 0.07), y: position === 'top-left' ? top : middle }
 }
 
 async function readCharacterAsset(character: CharacterProfile, emotion: string) {
@@ -817,7 +951,12 @@ async function makeClip(
   duration: number,
   fps: number,
   clipPath: string,
+  renderOptions: RenderOptions,
 ) {
+  const normalizedDuration = normalizeDuration(duration)
+  const audioFilter = `[1:a]aresample=${renderOptions.audioSampleRate}:async=1000:first_pts=0,apad,atrim=0:${normalizedDuration.toFixed(
+    3,
+  )},asetpts=N/SR/TB[a]`
   await runProcess(ffmpegPath, [
     '-y',
     '-loop',
@@ -825,68 +964,210 @@ async function makeClip(
     '-framerate',
     String(fps),
     '-t',
-    String(duration),
+    String(normalizedDuration),
     '-i',
     framePath,
     '-i',
     voicePath,
     '-filter_complex',
-    '[1:a]apad[a]',
+    audioFilter,
     '-map',
     '0:v',
     '-map',
     '[a]',
     '-t',
-    String(duration),
+    String(normalizedDuration),
     '-r',
     String(fps),
-    '-c:v',
-    'libx264',
-    '-preset',
-    'veryfast',
     '-pix_fmt',
     'yuv420p',
+    ...videoEncoderArgs(renderOptions),
     '-c:a',
     'aac',
     '-b:a',
-    '160k',
+    renderOptions.audioBitrate,
+    '-ar',
+    String(renderOptions.audioSampleRate),
+    '-ac',
+    '2',
     clipPath,
   ])
 }
 
-async function concatClips(ffmpegPath: string, clips: string[], outputPath: string, workspace: string) {
+async function concatClips(
+  ffmpegPath: string,
+  clips: string[],
+  outputPath: string,
+  workspace: string,
+  renderOptions: RenderOptions,
+) {
   const listPath = path.join(workspace, 'clips.txt')
   const content = clips.map((clip) => `file '${clip.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`).join('\n')
   await writeFile(listPath, content, 'utf8')
   await runProcess(ffmpegPath, [
     '-y',
+    '-fflags',
+    '+genpts',
     '-f',
     'concat',
     '-safe',
     '0',
     '-i',
     listPath,
-    '-c',
+    '-map',
+    '0:v:0',
+    '-map',
+    '0:a:0',
+    '-c:v',
     'copy',
+    '-af',
+    `aresample=${renderOptions.audioSampleRate}:async=1000:first_pts=0,asetpts=N/SR/TB`,
+    '-c:a',
+    'aac',
+    '-b:a',
+    renderOptions.audioBitrate,
+    '-ar',
+    String(renderOptions.audioSampleRate),
+    '-ac',
+    '2',
     '-movflags',
     '+faststart',
     outputPath,
   ])
 }
 
-async function makeSilence(ffmpegPath: string, outputPath: string, duration: number) {
+async function makeSilence(ffmpegPath: string, outputPath: string, duration: number, sampleRate: 44100 | 48000) {
   await runProcess(ffmpegPath, [
     '-y',
     '-f',
     'lavfi',
     '-i',
-    'anullsrc=channel_layout=stereo:sample_rate=44100',
+    `anullsrc=channel_layout=stereo:sample_rate=${sampleRate}`,
     '-t',
     String(duration),
     '-acodec',
     'pcm_s16le',
     outputPath,
   ])
+}
+
+async function resolveRenderOptions(
+  ffmpegPath: string,
+  settings: ProjectExportSettings | undefined,
+  workspace: string,
+  progress: (progress: ExportProgress) => void,
+): Promise<RenderOptions> {
+  const audioSampleRate = settings?.audioSampleRate ?? defaultAudioSampleRate
+  const audioBitrate = settings?.audioBitrate ?? defaultAudioBitrate
+  const videoBitrate = settings?.videoBitrate ?? defaultVideoBitrate
+  const requested = settings?.gpuAcceleration ?? 'auto'
+  const software: RenderOptions = {
+    encoder: 'software',
+    codec: 'libx264',
+    label: 'CPU libx264',
+    videoBitrate,
+    audioBitrate,
+    audioSampleRate,
+  }
+
+  if (requested === 'off') {
+    progress({ phase: 'prepare', message: `エンコーダー: ${software.label}`, percent: 3 })
+    return software
+  }
+
+  const allCandidates: RenderOptions[] = [
+    {
+      encoder: 'nvenc',
+      codec: 'h264_nvenc',
+      label: 'NVIDIA NVENC GPU',
+      videoBitrate,
+      audioBitrate,
+      audioSampleRate,
+    },
+    {
+      encoder: 'qsv',
+      codec: 'h264_qsv',
+      label: 'Intel Quick Sync GPU',
+      videoBitrate,
+      audioBitrate,
+      audioSampleRate,
+    },
+    {
+      encoder: 'amf',
+      codec: 'h264_amf',
+      label: 'AMD AMF GPU',
+      videoBitrate,
+      audioBitrate,
+      audioSampleRate,
+    },
+  ]
+  const candidates = allCandidates.filter((candidate) => requested === 'auto' || candidate.encoder === requested)
+
+  const encoders = await readFfmpegEncoders(ffmpegPath)
+  for (const candidate of candidates) {
+    if (!encoders.has(candidate.codec)) {
+      continue
+    }
+
+    progress({ phase: 'prepare', message: `${candidate.label} を検証中`, percent: 3 })
+    if (await probeVideoEncoder(ffmpegPath, workspace, candidate)) {
+      progress({ phase: 'prepare', message: `エンコーダー: ${candidate.label}`, percent: 4 })
+      return candidate
+    }
+  }
+
+  const reason = requested === 'auto' ? 'GPUエンコーダーを検出できないため' : `${requested} がこの環境で使用できないため`
+  progress({ phase: 'prepare', message: `${reason} ${software.label} にフォールバック`, percent: 4 })
+  return software
+}
+
+async function readFfmpegEncoders(ffmpegPath: string) {
+  try {
+    const output = await runProcessCapture(ffmpegPath, ['-hide_banner', '-encoders'])
+    const matches = output.matchAll(/^\s*[A-Z.]{6}\s+(\S+)/gm)
+    return new Set(Array.from(matches, (match) => match[1]))
+  } catch {
+    return new Set<string>()
+  }
+}
+
+async function probeVideoEncoder(ffmpegPath: string, workspace: string, options: RenderOptions) {
+  const outputPath = path.join(workspace, `encoder-probe-${options.codec}.mp4`)
+  try {
+    await runProcess(ffmpegPath, [
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'color=c=black:s=128x72:r=30',
+      '-t',
+      '0.15',
+      '-pix_fmt',
+      'yuv420p',
+      ...videoEncoderArgs(options),
+      '-an',
+      outputPath,
+    ])
+    return true
+  } catch {
+    return false
+  }
+}
+
+function videoEncoderArgs(options: RenderOptions) {
+  if (options.codec === 'libx264') {
+    return ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20']
+  }
+
+  if (options.codec === 'h264_nvenc') {
+    return ['-c:v', 'h264_nvenc', '-b:v', options.videoBitrate]
+  }
+
+  if (options.codec === 'h264_qsv') {
+    return ['-c:v', 'h264_qsv', '-b:v', options.videoBitrate]
+  }
+
+  return ['-c:v', 'h264_amf', '-b:v', options.videoBitrate]
 }
 
 function runProcess(command: string, args: string[]) {
@@ -902,6 +1183,31 @@ function runProcess(command: string, args: string[]) {
     child.on('close', (code) => {
       if (code === 0) {
         resolve()
+      } else {
+        reject(new Error(`${path.basename(command)} failed with code ${code}: ${stderr.slice(-2000)}`))
+      }
+    })
+  })
+}
+
+function runProcessCapture(command: string, args: string[]) {
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn(command, args, { windowsHide: true })
+    let stdout = ''
+    let stderr = ''
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString()
+    })
+
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
+
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve(`${stdout}\n${stderr}`)
       } else {
         reject(new Error(`${path.basename(command)} failed with code ${code}: ${stderr.slice(-2000)}`))
       }

@@ -16,6 +16,12 @@
       "palette": "paper-light",
       "subtitleStyle": "pop",
       "bgm": "none"
+    },
+    "export": {
+      "gpuAcceleration": "auto",
+      "videoBitrate": "8M",
+      "audioBitrate": "192k",
+      "audioSampleRate": 48000
     }
   },
   "characters": [
@@ -39,7 +45,19 @@
           "text": "ここに台詞を書きます。",
           "duration": 4.5,
           "emotion": "happy",
-          "layout": "duo"
+          "layout": "duo",
+          "assets": [
+            {
+              "id": "img-topic-map",
+              "type": "placeholder",
+              "track": "video",
+              "label": "差し替え画像: テーマ全体図",
+              "start": 0.4,
+              "duration": 3.6,
+              "placeholder": true,
+              "position": "main-left"
+            }
+          ]
         }
       ]
     }
@@ -57,11 +75,15 @@ characters は reimu と marisa の 2 人を使い、各 shot は 4 秒から 7 
 背景は scene ごとに classroom-board / news-desk / tatami-room / night-city / paper-light / studio-grid から内容に合わせて選んでください。
 speakerId は characters に存在する id だけを使ってください。
 scenes[].shots[].caption.emphasis には字幕で強調したい短い語句を 1 から 3 個入れてください。
+project.export.gpuAcceleration は "auto"、audioSampleRate は 48000 を標準にしてください。
+画像や図解が必要な箇所は shots[].assets に type "placeholder" / track "video" / placeholder true を入れ、
+source には架空のローカルパスやURLを書かないでください。
 説明文や Markdown は返さず、JSON オブジェクトだけを返してください。
 ```
 
 ## 主要フィールド
 
+- `project.export`: 書き出し設定です。`gpuAcceleration: "auto"` で NVIDIA NVENC / Intel Quick Sync / AMD AMF を自動検出し、使えない環境では CPU に安全フォールバックします。音声は `audioSampleRate: 48000` と `audioBitrate: "192k"` を推奨します。
 - `characters[].asset`: `reimu`, `marisa`, `akari`, `kohaku`, `aoba`, `custom`。`custom` はアプリ内の「話者素材を取り込む」から作った PNG 化済みユーザー素材です。
 - `characters[].customAsset`: `asset` が `custom` の時に必要です。取り込み時にアプリがローカル管理フォルダへ安全に変換保存した素材 ID とパスを持ちます。
 - `characters[].voice.engine`: `aquestalk-player` が標準です。`windows-sapi` は任意のフォールバックです。
@@ -72,6 +94,9 @@ scenes[].shots[].caption.emphasis には字幕で強調したい短い語句を 
 - `shots[].emotion`: `neutral`, `happy`, `thinking`, `surprised`, `serious`。
 - `shots[].layout`: `duo`, `left-focus`, `right-focus`, `solo-center`。
 - `shots[].visuals`: 画面右上の補助パネルに出す情報です。`keyword`, `bullet`, `chart`, `code`, `image` を指定できます。
+- `shots[].assets`: 編集タイムライン上の素材です。`track` は `video`, `character`, `voice`, `telop`, `effect`、`type` は `placeholder`, `image`, `video`, `audio`, `telop`, `effect` を使います。
+- `shots[].assets[].position`: プレビュー/出力上の配置です。`main-left`, `main-center`, `main-right`, `top-left`, `top-right`, `lower-third`, `fullscreen` を使えます。キャラクターは下左右、字幕は下部の専用領域を使うため、画像プレースホルダーは中央から上寄りを推奨します。
+- `shots[].assets[].source`: 実ファイルをユーザーが用意済みの場合だけ書きます。LLM はローカルパスやURLを推測して書かず、未用意なら `placeholder: true` と `label` で差し替え指示を残します。
 
 完全な JSON Schema は [schema/yukkuricast-script.schema.json](../schema/yukkuricast-script.schema.json)、動作サンプルは [examples/explainer.sample.json](../examples/explainer.sample.json) にあります。
 
