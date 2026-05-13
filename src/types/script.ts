@@ -194,3 +194,13 @@ export interface PreviewAudioResult {
   message?: string
   error?: string
 }
+
+export interface PreviewTimelineAudioResult {
+  ok: boolean
+  audioUrl?: string
+  duration?: number
+  shotDurations?: Record<string, number>
+  engineSummary?: string
+  message?: string
+  error?: string
+}

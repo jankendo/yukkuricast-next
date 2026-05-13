@@ -78,6 +78,8 @@ scenes[].shots[].caption.emphasis には字幕で強調したい短い語句を 
 project.export.gpuAcceleration は "auto"、audioSampleRate は 48000 を標準にしてください。
 画像や図解が必要な箇所は shots[].assets に type "placeholder" / track "video" / placeholder true を入れ、
 source には架空のローカルパスやURLを書かないでください。
+ゆっくり解説らしく、下部は太字字幕、左右下は霊夢/魔理沙、中央から上部は図解・Bロール・キーワードカードに分け、
+字幕・キャラクター・素材が重ならないよう position を選んでください。
 説明文や Markdown は返さず、JSON オブジェクトだけを返してください。
 ```
 
@@ -97,6 +99,18 @@ source には架空のローカルパスやURLを書かないでください。
 - `shots[].assets`: 編集タイムライン上の素材です。`track` は `video`, `character`, `voice`, `telop`, `effect`、`type` は `placeholder`, `image`, `video`, `audio`, `telop`, `effect` を使います。
 - `shots[].assets[].position`: プレビュー/出力上の配置です。`main-left`, `main-center`, `main-right`, `top-left`, `top-right`, `lower-third`, `fullscreen` を使えます。キャラクターは下左右、字幕は下部の専用領域を使うため、画像プレースホルダーは中央から上寄りを推奨します。
 - `shots[].assets[].source`: 実ファイルをユーザーが用意済みの場合だけ書きます。LLM はローカルパスやURLを推測して書かず、未用意なら `placeholder: true` と `label` で差し替え指示を残します。
+
+## プレビューと音声境界
+
+AquesTalkPlayer はショットごとに WAV を出力しますが、アプリ内プレビューではそれらをショット境界で差し替えません。全ショットの WAV を先に 48kHz/stereo PCM へ正規化し、1 本の連続プレビュー WAV として再生します。これにより、次のテロップへ移る瞬間に AquesTalk 音声だけが途切れる問題を避けます。
+
+## ゆっくり解説レイアウト方針
+
+- キャラクターは左右下に固定し、話者フォーカス時だけ少し強調します。
+- 下部 25% 前後は字幕専用の安全領域です。
+- 図解・差し替え画像・Bロールは中央から上部に置き、字幕と顔にかぶせません。
+- 重要語だけを `caption.emphasis` で黄色強調し、全文装飾は避けます。
+- YMM4 のように、ボイス・字幕・キャラクター・画像・効果をタイムライン上の独立レーンとして扱います。
 
 完全な JSON Schema は [schema/yukkuricast-script.schema.json](../schema/yukkuricast-script.schema.json)、動作サンプルは [examples/explainer.sample.json](../examples/explainer.sample.json) にあります。
 

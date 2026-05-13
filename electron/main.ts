@@ -323,6 +323,38 @@ ipcMain.handle('preview:render-audio', async (_event, rawProject: YukkuriProject
   }
 })
 
+ipcMain.handle('preview:render-timeline-audio', async (_event, rawProject: YukkuriProject) => {
+  const workspace = path.join(app.getPath('temp'), 'yukkuricast-next-preview-timeline', randomUUID())
+  const outputPath = path.join(workspace, 'timeline.preview.wav')
+
+  try {
+    const project = yukkuriProjectSchema.parse(rawProject) as YukkuriProject
+    assertSpeakerReferences(project)
+    const ffmpegPath = resolveFfmpegPath()
+    const audioSampleRate = project.project.export?.audioSampleRate ?? defaultAudioSampleRate
+
+    await mkdir(workspace, { recursive: true })
+    const rendered = await synthesizeTimelineAudio(project, workspace, outputPath, ffmpegPath, audioSampleRate)
+    const wav = await readFile(outputPath)
+
+    return {
+      ok: true,
+      audioUrl: `data:audio/wav;base64,${wav.toString('base64')}`,
+      duration: rendered.duration,
+      shotDurations: rendered.shotDurations,
+      engineSummary: rendered.engineSummary,
+      message: `${rendered.engineSummary} / ${rendered.duration.toFixed(2)}s continuous preview`,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  } finally {
+    await rm(workspace, { recursive: true, force: true })
+  }
+})
+
 ipcMain.handle('video:export', async (event, rawProject: YukkuriProject) => {
   try {
     const project = yukkuriProjectSchema.parse(rawProject) as YukkuriProject
@@ -511,6 +543,45 @@ $synth.Dispose()
   }
 }
 
+async function synthesizeTimelineAudio(
+  project: YukkuriProject,
+  workspace: string,
+  outputPath: string,
+  ffmpegPath: string,
+  audioSampleRate: 44100 | 48000,
+) {
+  const shots = getAllShots(project)
+  const voicePaths: string[] = []
+  const shotDurations: Record<string, number> = {}
+  const engines = new Set<string>()
+
+  for (let index = 0; index < shots.length; index += 1) {
+    const shot = shots[index]
+    const base = `${String(index + 1).padStart(3, '0')}-${safeFileName(shot.id)}`
+    const rawVoicePath = path.join(workspace, `${base}.raw.wav`)
+    const normalizedVoicePath = path.join(workspace, `${base}.timeline.wav`)
+    const speaker = project.characters.find((character) => character.id === shot.speakerId)
+    if (!speaker) {
+      throw new Error(`speaker not found: ${shot.speakerId}`)
+    }
+
+    engines.add(voiceEngineLabel(speaker.voice.engine))
+    const voice = await synthesizeVoice(shot.text, speaker, rawVoicePath, shot.duration, ffmpegPath)
+    const clipDuration = normalizeDuration(Math.max(shot.duration, voice.duration + audioTailPaddingSeconds))
+    await normalizeVoiceWav(ffmpegPath, rawVoicePath, normalizedVoicePath, clipDuration, audioSampleRate)
+    voicePaths.push(normalizedVoicePath)
+    shotDurations[shot.id] = clipDuration
+  }
+
+  await concatAudioWavs(ffmpegPath, voicePaths, outputPath, workspace, audioSampleRate)
+
+  return {
+    duration: Object.values(shotDurations).reduce((total, value) => total + value, 0),
+    shotDurations,
+    engineSummary: Array.from(engines).join(' + '),
+  }
+}
+
 async function synthesizeWithAquesTalkPlayer(text: string, speaker: CharacterProfile, outputPath: string) {
   if (process.platform !== 'win32') {
     throw new Error('AquesTalkPlayer は Windows 版アプリで利用してください。')
@@ -659,7 +730,7 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
         : character.side === 'left'
           ? Math.round(width * 0.05)
           : Math.round(width - width * 0.05 - size)
-      const y = Math.round(height * (focusScale ? 0.49 : 0.53))
+      const y = Math.round(height * (focusScale ? 0.44 : 0.49))
       const opacity = muted ? 0.64 : 1
 
       return `
@@ -1032,6 +1103,46 @@ async function concatClips(
     '2',
     '-movflags',
     '+faststart',
+    '-avoid_negative_ts',
+    'make_zero',
+    outputPath,
+  ])
+}
+
+async function concatAudioWavs(
+  ffmpegPath: string,
+  clips: string[],
+  outputPath: string,
+  workspace: string,
+  sampleRate: 44100 | 48000,
+) {
+  if (clips.length === 0) {
+    await makeSilence(ffmpegPath, outputPath, 1, sampleRate)
+    return
+  }
+
+  const listPath = path.join(workspace, 'preview-audio-clips.txt')
+  const content = clips.map((clip) => `file '${clip.replace(/\\/g, '/').replace(/'/g, "'\\''")}'`).join('\n')
+  await writeFile(listPath, content, 'utf8')
+  await runProcess(ffmpegPath, [
+    '-y',
+    '-fflags',
+    '+genpts',
+    '-f',
+    'concat',
+    '-safe',
+    '0',
+    '-i',
+    listPath,
+    '-vn',
+    '-af',
+    `aresample=${sampleRate}:async=1000:first_pts=0,asetpts=N/SR/TB`,
+    '-ac',
+    '2',
+    '-ar',
+    String(sampleRate),
+    '-c:a',
+    'pcm_s16le',
     outputPath,
   ])
 }
@@ -1139,7 +1250,7 @@ async function probeVideoEncoder(ffmpegPath: string, workspace: string, options:
       '-f',
       'lavfi',
       '-i',
-      'color=c=black:s=128x72:r=30',
+      'color=c=black:s=320x180:r=30',
       '-t',
       '0.15',
       '-pix_fmt',
@@ -1160,7 +1271,36 @@ function videoEncoderArgs(options: RenderOptions) {
   }
 
   if (options.codec === 'h264_nvenc') {
-    return ['-c:v', 'h264_nvenc', '-b:v', options.videoBitrate]
+    return [
+      '-c:v',
+      'h264_nvenc',
+      '-gpu',
+      '0',
+      '-preset',
+      'p4',
+      '-tune',
+      'hq',
+      '-rc',
+      'vbr',
+      '-cq',
+      '21',
+      '-b:v',
+      options.videoBitrate,
+      '-maxrate',
+      '16M',
+      '-bufsize',
+      '16M',
+      '-spatial-aq',
+      '1',
+      '-temporal-aq',
+      '1',
+      '-rc-lookahead',
+      '20',
+      '-g',
+      '60',
+      '-bf',
+      '0',
+    ]
   }
 
   if (options.codec === 'h264_qsv') {
@@ -1216,6 +1356,30 @@ function runProcessCapture(command: string, args: string[]) {
 }
 
 function resolveFfmpegPath() {
+  const configured = process.env.FFMPEG_PATH?.trim()
+  if (configured && existsSync(configured)) {
+    return configured
+  }
+
+  const localTools = [
+    path.join(process.cwd(), 'tools', 'ffmpeg', 'bin', 'ffmpeg.exe'),
+    path.join(app.getPath('userData'), 'tools', 'ffmpeg', 'bin', 'ffmpeg.exe'),
+    path.join(app.getPath('appData'), 'YukkuriCast Next', 'tools', 'ffmpeg', 'bin', 'ffmpeg.exe'),
+    process.env.LOCALAPPDATA
+      ? path.join(process.env.LOCALAPPDATA, 'YukkuriCast Next', 'tools', 'ffmpeg', 'bin', 'ffmpeg.exe')
+      : undefined,
+  ].filter((candidate): candidate is string => Boolean(candidate))
+  for (const candidate of localTools) {
+    if (existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  const pathFfmpeg = findExecutableOnPath('ffmpeg.exe')
+  if (pathFfmpeg) {
+    return pathFfmpeg
+  }
+
   const bundled = (ffmpegInstaller as { path?: string }).path
   if (app.isPackaged && bundled?.includes('app.asar')) {
     const unpacked = bundled.replace('app.asar', 'app.asar.unpacked')
@@ -1228,6 +1392,17 @@ function resolveFfmpegPath() {
     return bundled
   }
   return 'ffmpeg'
+}
+
+function findExecutableOnPath(executable: string) {
+  const paths = process.env.PATH?.split(path.delimiter) ?? []
+  for (const entry of paths) {
+    const candidate = path.join(entry, executable)
+    if (existsSync(candidate)) {
+      return candidate
+    }
+  }
+  return undefined
 }
 
 function assertSpeakerReferences(project: YukkuriProject) {

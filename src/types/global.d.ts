@@ -3,6 +3,7 @@ import type {
   ExportResult,
   ImportedAssetResult,
   PreviewAudioResult,
+  PreviewTimelineAudioResult,
   ScriptFileResult,
   VoiceEngineSettings,
   VoiceSettingsResult,
@@ -19,6 +20,7 @@ declare global {
       getVoiceSettings: () => Promise<VoiceEngineSettings>
       selectAquesTalkPlayer: () => Promise<VoiceSettingsResult>
       renderPreviewAudio: (project: YukkuriProject, shotId: string) => Promise<PreviewAudioResult>
+      renderPreviewTimelineAudio: (project: YukkuriProject) => Promise<PreviewTimelineAudioResult>
       exportVideo: (project: YukkuriProject) => Promise<ExportResult>
       onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
     }

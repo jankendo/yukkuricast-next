@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('yukkuri', {
   selectAquesTalkPlayer: () => ipcRenderer.invoke('voice:select-aquestalk-player'),
   renderPreviewAudio: (project: YukkuriProject, shotId: string) =>
     ipcRenderer.invoke('preview:render-audio', project, shotId),
+  renderPreviewTimelineAudio: (project: YukkuriProject) => ipcRenderer.invoke('preview:render-timeline-audio', project),
   exportVideo: (project: YukkuriProject) => ipcRenderer.invoke('video:export', project),
   onExportProgress: (callback: (progress: ExportProgress) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: ExportProgress) => {

@@ -14,7 +14,7 @@ import type {
   CharacterVoice,
   ExportProgress,
   ExportResult,
-  PreviewAudioResult,
+  PreviewTimelineAudioResult,
   VoiceEngineSettings,
   VoiceSettingsResult,
   YukkuriProject,
@@ -32,7 +32,6 @@ function App() {
   const [activeShotId, setActiveShotId] = useState(sampleProject.scenes[0].shots[0].id)
   const [previewTime, setPreviewTime] = useState(0)
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false)
-  const [playbackRevision, setPlaybackRevision] = useState(0)
   const [previewAudioStatus, setPreviewAudioStatus] = useState('音声プレビュー待機中')
   const [voiceSettings, setVoiceSettings] = useState<VoiceEngineSettings>({})
   const [previewAudioDurationState, setPreviewAudioDurationState] = useState<{
@@ -46,9 +45,9 @@ function App() {
   const [exportResult, setExportResult] = useState<ExportResult | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const audioRequestRef = useRef(0)
-  const previewAudioCacheRef = useRef(new Map<string, PreviewAudioResult>())
-  const previewAudioPendingRef = useRef(new Map<string, Promise<PreviewAudioResult>>())
+  const activeTimelineAudioKeyRef = useRef('')
+  const previewTimelineAudioCacheRef = useRef(new Map<string, PreviewTimelineAudioResult>())
+  const previewTimelineAudioPendingRef = useRef(new Map<string, Promise<PreviewTimelineAudioResult>>())
   const previewTimeRef = useRef(0)
   const promptCopyTimerRef = useRef<number | undefined>(undefined)
 
@@ -90,8 +89,14 @@ function App() {
           id: character.id,
           voice: character.voice,
         })),
+        audioSampleRate: project.project.export?.audioSampleRate ?? 48000,
         shots: project.scenes.flatMap((scene) =>
-          scene.shots.map((shot) => ({ id: shot.id, speakerId: shot.speakerId, text: shot.text })),
+          scene.shots.map((shot) => ({
+            id: shot.id,
+            speakerId: shot.speakerId,
+            text: shot.text,
+            duration: shot.duration,
+          })),
         ),
       }),
     [project],
@@ -114,160 +119,92 @@ function App() {
     : 0
   const visibleActiveShotId = activeContext?.id ?? activeShotId
   const aiPromptTemplate = useMemo(() => buildAiJsonPromptTemplate(project), [project])
-  const warmPreviewAudio = useCallback(
-    async (shotId: string) => {
-      if (!window.yukkuri?.renderPreviewAudio) {
+  const warmPreviewTimelineAudio = useCallback(
+    async () => {
+      if (!window.yukkuri?.renderPreviewTimelineAudio) {
         return undefined
       }
-      const cacheKey = `${previewAudioCacheKey}:${shotId}`
-      const cached = previewAudioCacheRef.current.get(cacheKey)
+      const cached = previewTimelineAudioCacheRef.current.get(previewAudioCacheKey)
       if (cached) {
         return cached
       }
-      const pending = previewAudioPendingRef.current.get(cacheKey)
+      const pending = previewTimelineAudioPendingRef.current.get(previewAudioCacheKey)
       if (pending) {
         return pending
       }
+      setPreviewAudioStatus('AquesTalk音声を連続プレビュー用に合成中...')
       const request = window.yukkuri
-        .renderPreviewAudio(project, shotId)
+        .renderPreviewTimelineAudio(project)
         .then((result) => {
-          previewAudioCacheRef.current.set(cacheKey, result)
-          previewAudioPendingRef.current.delete(cacheKey)
-          if (result.ok && Number.isFinite(result.duration) && result.duration) {
+          previewTimelineAudioCacheRef.current.set(previewAudioCacheKey, result)
+          previewTimelineAudioPendingRef.current.delete(previewAudioCacheKey)
+          if (result.ok && result.shotDurations) {
             setPreviewAudioDurationState((current) => {
-              const nextDuration = Math.max(0, result.duration ?? 0)
-              const currentValues = current.key === previewAudioCacheKey ? current.values : {}
-              if (Math.abs((currentValues[shotId] ?? 0) - nextDuration) < 0.02) {
+              if (current.key === previewAudioCacheKey && sameDurations(current.values, result.shotDurations ?? {})) {
                 return current
               }
               return {
                 key: previewAudioCacheKey,
-                values: {
-                  ...currentValues,
-                  [shotId]: nextDuration,
-                },
+                values: result.shotDurations ?? {},
               }
             })
           }
           return result
         })
         .catch((error: unknown) => {
-          previewAudioPendingRef.current.delete(cacheKey)
+          previewTimelineAudioPendingRef.current.delete(previewAudioCacheKey)
           throw error
         })
-      previewAudioPendingRef.current.set(cacheKey, request)
+      previewTimelineAudioPendingRef.current.set(previewAudioCacheKey, request)
       return request
     },
     [previewAudioCacheKey, project],
   )
 
   useEffect(() => {
-    previewAudioCacheRef.current.clear()
-    previewAudioPendingRef.current.clear()
+    previewTimelineAudioCacheRef.current.clear()
+    previewTimelineAudioPendingRef.current.clear()
+    activeTimelineAudioKeyRef.current = ''
+    const audio = audioRef.current
+    if (audio) {
+      audio.pause()
+      audio.src = ''
+    }
   }, [previewAudioCacheKey])
 
   useEffect(() => {
-    if (!activeContext) {
-      return
+    if (!isPreviewPlaying) {
+      warmPreviewTimelineAudio().catch(() => undefined)
     }
-
-    warmPreviewAudio(activeContext.id).catch(() => undefined)
-    const nextShot = timedShots[activeContext.index + 1]
-    if (nextShot) {
-      warmPreviewAudio(nextShot.id).catch(() => undefined)
-    }
-  }, [activeContext, timedShots, warmPreviewAudio])
+  }, [isPreviewPlaying, warmPreviewTimelineAudio])
 
   useEffect(() => {
     if (!isPreviewPlaying) {
+      audioRef.current?.pause()
+      window.speechSynthesis?.cancel()
       return
     }
 
     let frameId = 0
-    let lastTick = performance.now()
-
-    const tick = (now: number) => {
-      const deltaSeconds = Math.min(0.12, (now - lastTick) / 1000)
-      lastTick = now
-      setPreviewTime((current) => {
-        const next = current + deltaSeconds
-        if (next >= duration) {
-          setIsPreviewPlaying(false)
-          setPreviewAudioStatus('プレビュー完了')
-          return duration
-        }
-        return next
-      })
+    const tick = () => {
+      const audio = audioRef.current
+      const next = clampTime(audio?.currentTime ?? previewTimeRef.current, duration)
+      setPreviewTime(next)
+      const shot = getShotAtTime(project, next, previewAudioDurations)
+      if (shot) {
+        setActiveShotId(shot.id)
+      }
+      if (audio?.ended || next >= duration - 0.02) {
+        setIsPreviewPlaying(false)
+        setPreviewAudioStatus('プレビュー完了')
+        return
+      }
       frameId = requestAnimationFrame(tick)
     }
 
     frameId = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frameId)
-  }, [duration, isPreviewPlaying])
-
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) {
-      return
-    }
-
-    if (!isPreviewPlaying) {
-      audio.pause()
-      window.speechSynthesis?.cancel()
-      return
-    }
-
-    if (!activeContext) {
-      return
-    }
-
-    const requestId = audioRequestRef.current + 1
-    audioRequestRef.current = requestId
-    audio.pause()
-    window.speechSynthesis?.cancel()
-    window.setTimeout(() => setPreviewAudioStatus('音声生成中...'), 0)
-
-    const offset = Math.max(
-      0,
-      Math.min(previewTimeRef.current - activeContext.start, Math.max(0, activeContext.duration - 0.08)),
-    )
-
-    if (!window.yukkuri?.renderPreviewAudio) {
-      playBrowserSpeech(activeContext.text)
-      window.setTimeout(() => setPreviewAudioStatus('ブラウザ音声でプレビュー中'), 0)
-      return
-    }
-
-    warmPreviewAudio(activeContext.id)
-      .then((result) => {
-        if (audioRequestRef.current !== requestId) {
-          return
-        }
-
-        if (!result?.ok || !result.audioUrl) {
-          setPreviewAudioStatus(result?.error ?? '音声生成に失敗しました')
-          return
-        }
-
-        audio.src = result.audioUrl
-        audio.playbackRate = 1
-        audio.onloadedmetadata = () => {
-          if (audioRequestRef.current !== requestId) {
-            return
-          }
-          audio.currentTime = Math.min(offset, Math.max(0, audio.duration - 0.05))
-          audio.play().catch((error: unknown) => {
-            setPreviewAudioStatus(error instanceof Error ? error.message : '音声再生に失敗しました')
-          })
-        }
-        setPreviewAudioStatus(`${result.engine === 'aquestalk-player' ? 'AquesTalkPlayer' : 'Windows SAPI'} で再生中`)
-      })
-      .catch((error: unknown) => {
-        if (audioRequestRef.current === requestId) {
-          setPreviewAudioStatus(error instanceof Error ? error.message : String(error))
-        }
-      })
-  }, [activeContext, isPreviewPlaying, playbackRevision, warmPreviewAudio])
+  }, [duration, isPreviewPlaying, project, previewAudioDurations])
 
   useEffect(() => {
     return () => {
@@ -467,19 +404,57 @@ function App() {
     if (previewTime >= duration) {
       seekPreview(0)
     }
-    if (startShot) {
-      setPreviewAudioStatus('音声長を確認中...')
-      await warmPreviewAudio(startShot.id).catch((error: unknown) => {
-        setPreviewAudioStatus(error instanceof Error ? error.message : String(error))
-      })
+
+    if (!window.yukkuri?.renderPreviewTimelineAudio) {
+      if (startShot) {
+        playBrowserSpeech(startShot.text)
+      }
+      setPreviewAudioStatus('ブラウザ音声でプレビュー中')
+      setIsPreviewPlaying(true)
+      return
     }
 
-    setPlaybackRevision((revision) => revision + 1)
+    const audio = audioRef.current
+    if (!audio) {
+      return
+    }
+
+    const result = await warmPreviewTimelineAudio().catch((error: unknown) => {
+      setPreviewAudioStatus(error instanceof Error ? error.message : String(error))
+      return undefined
+    })
+    if (!result?.ok || !result.audioUrl) {
+      setPreviewAudioStatus(result?.error ?? '連続プレビュー音声の生成に失敗しました')
+      return
+    }
+
+    if (activeTimelineAudioKeyRef.current !== previewAudioCacheKey) {
+      audio.pause()
+      audio.src = result.audioUrl
+      activeTimelineAudioKeyRef.current = previewAudioCacheKey
+      await waitForAudioMetadata(audio)
+    }
+
+    audio.playbackRate = 1
+    audio.currentTime = clampTime(startTime, result.duration ?? duration)
+    const playbackStarted = await audio.play().then(() => true).catch((error: unknown) => {
+      setPreviewAudioStatus(error instanceof Error ? error.message : '音声再生に失敗しました')
+      return false
+    })
+    if (!playbackStarted) {
+      return
+    }
+    setPreviewAudioStatus(`${result.engineSummary ?? 'AquesTalkPlayer'} 連続プレビュー中`)
     setIsPreviewPlaying(true)
   }
 
   function stopPreview() {
     setIsPreviewPlaying(false)
+    const audio = audioRef.current
+    if (audio) {
+      audio.pause()
+      audio.currentTime = 0
+    }
     seekPreview(0)
     setPreviewAudioStatus('音声プレビュー待機中')
   }
@@ -487,17 +462,19 @@ function App() {
   function seekPreview(nextTime: number) {
     const next = clampTime(nextTime, duration)
     setPreviewTime(next)
+    const audio = audioRef.current
+    if (audio && activeTimelineAudioKeyRef.current === previewAudioCacheKey) {
+      audio.currentTime = next
+    }
     const shot = getShotAtTime(project, next, previewAudioDurations)
     if (shot) {
       setActiveShotId(shot.id)
     }
-    setPlaybackRevision((revision) => revision + 1)
   }
 
   function selectShot(shotId: string) {
     setActiveShotId(shotId)
-    setPreviewTime(getShotStart(project, shotId, previewAudioDurations))
-    setPlaybackRevision((revision) => revision + 1)
+    seekPreview(getShotStart(project, shotId, previewAudioDurations))
   }
 
   async function copyAiPrompt() {
@@ -609,6 +586,38 @@ function formatError(error: unknown) {
   }
 
   return [error instanceof Error ? error.message : String(error)]
+}
+
+function sameDurations(current: Record<string, number>, next: Record<string, number>) {
+  const currentKeys = Object.keys(current)
+  const nextKeys = Object.keys(next)
+  if (currentKeys.length !== nextKeys.length) {
+    return false
+  }
+  return nextKeys.every((key) => Math.abs((current[key] ?? 0) - next[key]) < 0.02)
+}
+
+function waitForAudioMetadata(audio: HTMLAudioElement) {
+  if (audio.readyState >= 1) {
+    return Promise.resolve()
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      audio.removeEventListener('loadedmetadata', handleLoaded)
+      audio.removeEventListener('error', handleError)
+    }
+    const handleLoaded = () => {
+      cleanup()
+      resolve()
+    }
+    const handleError = () => {
+      cleanup()
+      reject(new Error('プレビュー音声を読み込めませんでした。'))
+    }
+    audio.addEventListener('loadedmetadata', handleLoaded, { once: true })
+    audio.addEventListener('error', handleError, { once: true })
+  })
 }
 
 async function copyText(value: string) {
