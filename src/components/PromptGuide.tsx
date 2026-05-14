@@ -15,9 +15,9 @@ export function PromptGuide({ prompt, copied, onCopy, onClose }: PromptGuideProp
           <div>
             <div className="panel-title">
               <FileJson2 size={18} />
-              AI JSON テンプレート
+              AI JSON 成長テンプレート
             </div>
-            <p>LLM に渡すだけで、YukkuriCast Next が読める台本 JSON を生成させるための仕様付きプロンプトです。</p>
+            <p>全文テロップ、冒頭30秒維持、章ごとの問い、図解プレースホルダーまで含めて、YukkuriCast Next 用 JSON を作る仕様付きプロンプトです。</p>
           </div>
           <button type="button" className="icon-button ghost" onClick={onClose} aria-label="閉じる">
             <X size={18} />

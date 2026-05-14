@@ -2,7 +2,30 @@ export type Emotion = 'neutral' | 'happy' | 'thinking' | 'surprised' | 'serious'
 
 export type StageLayout = 'duo' | 'left-focus' | 'right-focus' | 'solo-center'
 
-export type VisualCueType = 'image' | 'keyword' | 'bullet' | 'chart' | 'code'
+export type VisualCueType =
+  | 'image'
+  | 'keyword'
+  | 'bullet'
+  | 'chart'
+  | 'code'
+  | 'question'
+  | 'timeline'
+  | 'comparison'
+  | 'source'
+  | 'map'
+  | 'chapter'
+
+export type RetentionBeatType =
+  | 'hook'
+  | 'viewer-benefit'
+  | 'question'
+  | 'early-payoff'
+  | 'background'
+  | 'evidence'
+  | 'twist'
+  | 'climax'
+  | 'summary'
+  | 'next-video'
 
 export type CharacterAsset = 'reimu' | 'marisa' | 'akari' | 'kohaku' | 'aoba' | 'custom'
 
@@ -30,6 +53,18 @@ export interface ProjectExportSettings {
   videoBitrate?: string
   audioBitrate?: string
   audioSampleRate?: 44100 | 48000
+}
+
+export interface ProjectGrowthPlan {
+  targetViewer?: string
+  viewerPromise?: string
+  coreQuestion?: string
+  titleCandidates?: string[]
+  thumbnailTexts?: string[]
+  openingHook?: string
+  retentionGoal?: string
+  shortsHook?: string
+  nextVideoIdea?: string
 }
 
 export interface ReadingDictionaryEntry {
@@ -92,6 +127,15 @@ export interface VisualCue {
   items?: string[]
 }
 
+export interface ShotRetentionSpec {
+  beat?: RetentionBeatType
+  chapterLabel?: string
+  viewerQuestion?: string
+  visualChange?: string
+  sourceNote?: string
+  nextCuriosity?: string
+}
+
 export type TimelineAssetType = 'placeholder' | 'image' | 'video' | 'audio' | 'telop' | 'effect'
 
 export type TimelineTrackType = 'video' | 'character' | 'voice' | 'telop' | 'effect'
@@ -127,6 +171,7 @@ export interface Shot {
   emotion?: Emotion
   layout?: StageLayout
   caption?: CaptionSpec
+  retention?: ShotRetentionSpec
   visuals?: VisualCue[]
   assets?: TimelineAsset[]
   notes?: string
@@ -150,6 +195,7 @@ export interface YukkuriProject {
     resolution: Resolution
     theme: ProjectTheme
     export?: ProjectExportSettings
+    growth?: ProjectGrowthPlan
     readingDictionary?: ReadingDictionaryEntry[]
   }
   characters: CharacterProfile[]

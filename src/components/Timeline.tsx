@@ -231,6 +231,19 @@ function buildTelopBlocks(timedShots: TimedShot[]): Block[] {
 
 function buildEffectBlocks(timedShots: TimedShot[]): Block[] {
   return timedShots.flatMap((shot) => {
+    const retentionBlock = shot.retention
+      ? [
+          {
+            id: `retention-${shot.id}`,
+            shotId: shot.id,
+            label: shot.retention.chapterLabel ?? shot.retention.beat ?? 'retention',
+            meta: shot.retention.beat ?? 'retention',
+            start: shot.start,
+            duration: Math.max(0.6, Math.min(shot.duration, 1.8)),
+            tone: 'effect' as const,
+          },
+        ]
+      : []
     const visualBlocks =
       shot.visuals?.map((visual, index) => ({
         id: `visual-${shot.id}-${index}`,
@@ -241,7 +254,7 @@ function buildEffectBlocks(timedShots: TimedShot[]): Block[] {
         duration: Math.max(0.6, shot.duration - Math.min(0.6, shot.duration * 0.2)),
         tone: 'effect' as const,
       })) ?? []
-    return [...visualBlocks, ...assetBlocks(shot, 'effect', 'effect')]
+    return [...retentionBlock, ...visualBlocks, ...assetBlocks(shot, 'effect', 'effect')]
   })
 }
 

@@ -115,6 +115,32 @@ export function InspectorPanel({
         </dl>
       </section>
 
+      <section className="info-group retention-inspector">
+        <div className="group-heading">
+          <Sparkles size={16} />
+          Retention Design
+        </div>
+        <dl>
+          <div>
+            <dt>役割</dt>
+            <dd>{shot.retention?.beat ?? 'evidence'}</dd>
+          </div>
+          <div>
+            <dt>章</dt>
+            <dd>{shot.retention?.chapterLabel ?? project.project.growth?.coreQuestion ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>問い</dt>
+            <dd>{shot.retention?.viewerQuestion ?? project.project.growth?.viewerPromise ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>変化</dt>
+            <dd>{shot.retention?.visualChange ?? '-'}</dd>
+          </div>
+        </dl>
+        {shot.retention?.nextCuriosity && <p className="inspector-text next-hook">NEXT: {shot.retention.nextCuriosity}</p>}
+      </section>
+
       <section className="info-group">
         <div className="group-heading">
           <Sparkles size={16} />
@@ -309,6 +335,21 @@ export function InspectorPanel({
           </div>
         </dl>
       </section>
+
+      {project.project.growth && (
+        <section className="info-group compact growth-card">
+          <div className="group-heading">
+            <Sparkles size={16} />
+            Growth Plan
+          </div>
+          <p className="inspector-text">{project.project.growth.viewerPromise ?? project.project.growth.coreQuestion}</p>
+          <div className="chips">
+            {(project.project.growth.thumbnailTexts ?? []).slice(0, 4).map((text) => (
+              <span key={text}>{text}</span>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="info-group compact">
         <div className="group-heading">

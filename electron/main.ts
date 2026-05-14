@@ -784,13 +784,13 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
         (shot.layout === 'left-focus' && character.side === 'left') ||
         (shot.layout === 'right-focus' && character.side === 'right')
       const muted = (shot.layout === 'left-focus' && character.side === 'right') || (shot.layout === 'right-focus' && character.side === 'left')
-      const size = Math.round(width * (focusScale ? 0.16 : 0.13))
+      const size = Math.round(width * (focusScale ? 0.125 : 0.105))
       const x = shot.layout === 'solo-center'
         ? Math.round(width / 2 - size / 2)
         : character.side === 'left'
-          ? Math.round(width * 0.05)
-          : Math.round(width - width * 0.05 - size)
-      const y = Math.round(height * (focusScale ? 0.44 : 0.49))
+          ? Math.round(width * 0.065)
+          : Math.round(width - width * 0.065 - size)
+      const y = Math.round(height * (focusScale ? 0.49 : 0.51))
       const opacity = muted ? 0.64 : 1
 
       return `
@@ -803,12 +803,16 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
   )
 
   const visual = shot.visuals?.[0]
-  const caption = shot.caption?.text ?? shot.text
-  const captionLines = wrapJapanese(caption, 34)
+  const caption = shot.caption?.text?.trim() || shot.text
+  const captionLines = wrapJapanese(caption, caption.length > 82 ? 38 : 34, 4)
+  const subtitleFontSize = captionLines.length >= 4 ? 34 : captionLines.length === 3 ? 37 : 42
+  const subtitleLineStep = subtitleFontSize + 10
   const bg = await backgroundSvg(background, width, height)
   const visualSvg = visual ? renderVisual(visual, width, height) : ''
   const assetSvg = renderShotAssets(shot, width, height)
-  const subtitleY = Math.round(height * 0.82)
+  const retentionSvg = renderRetentionFrame(project, shot, width, height)
+  const emphasisSvg = renderEmphasisChips(shot, width, height)
+  const subtitleY = Math.round(height * 0.795)
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -816,16 +820,18 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
     <filter id="shadow"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity=".26"/></filter>
   </defs>
   ${bg}
+  ${retentionSvg}
   ${assetSvg}
   ${visualSvg}
   <g filter="url(#shadow)">
     ${characterLayers.join('\n')}
   </g>
-  <rect x="${Math.round(width * 0.055)}" y="${Math.round(height * 0.765)}" width="${Math.round(width * 0.89)}" height="${Math.round(height * 0.16)}" rx="14" fill="rgba(255,255,255,.74)" stroke="rgba(9,13,17,.22)" stroke-width="3"/>
-  <rect x="${Math.round(width * 0.072)}" y="${Math.round(height * 0.735)}" width="${Math.round(width * 0.12)}" height="${Math.round(height * 0.043)}" rx="10" fill="#10151b" stroke="#ffffff" stroke-opacity=".65" stroke-width="2"/>
-  <text x="${Math.round(width * 0.132)}" y="${Math.round(height * 0.765)}" fill="#ffcc4d" font-size="24" font-weight="900" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(speaker.name)}</text>
-  <text x="${Math.round(width * 0.082)}" y="${subtitleY}" fill="#ffffff" stroke="#11151a" stroke-width="8" paint-order="stroke fill" font-size="40" font-weight="900" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
-    ${captionLines.map((line, index) => `<tspan x="${Math.round(width * 0.082)}" dy="${index === 0 ? 0 : 50}">${escapeXml(line)}</tspan>`).join('\n')}
+  ${emphasisSvg}
+  <rect x="${Math.round(width * 0.052)}" y="${Math.round(height * 0.738)}" width="${Math.round(width * 0.896)}" height="${Math.round(height * 0.19)}" rx="16" fill="rgba(255,255,255,.80)" stroke="rgba(9,13,17,.28)" stroke-width="3"/>
+  <rect x="${Math.round(width * 0.068)}" y="${Math.round(height * 0.704)}" width="${Math.round(width * 0.13)}" height="${Math.round(height * 0.047)}" rx="11" fill="#10151b" stroke="#ffffff" stroke-opacity=".7" stroke-width="2"/>
+  <text x="${Math.round(width * 0.133)}" y="${Math.round(height * 0.737)}" fill="#ffcc4d" font-size="25" font-weight="900" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(speaker.name)}</text>
+  <text x="${Math.round(width * 0.082)}" y="${subtitleY}" fill="#ffffff" stroke="#11151a" stroke-width="8" paint-order="stroke fill" font-size="${subtitleFontSize}" font-weight="900" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
+    ${captionLines.map((line, index) => `<tspan x="${Math.round(width * 0.082)}" dy="${index === 0 ? 0 : subtitleLineStep}">${escapeXml(line)}</tspan>`).join('\n')}
   </text>
 </svg>`
 }
@@ -866,20 +872,82 @@ async function backgroundSvg(background: SceneBackground, width: number, height:
   `
 }
 
-function renderVisual(visual: NonNullable<Shot['visuals']>[number], width: number, height: number) {
-  const x = Math.round(width * 0.59)
-  const y = Math.round(height * 0.07)
-  const boxWidth = Math.round(width * 0.34)
-  const boxHeight = Math.round(height * 0.23)
-  const bodyLines = wrapJapanese(visual.body ?? '', 22)
-  const itemLines = visual.items ?? []
+function renderRetentionFrame(project: YukkuriProject, shot: Shot, width: number, height: number) {
+  const retention = shot.retention
+  const beat = retention?.beat ?? 'evidence'
+  const label = retentionBeatLabel(beat)
+  const accent = retentionBeatAccent(beat)
+  const chapter = retention?.chapterLabel ?? project.project.growth?.coreQuestion ?? project.project.title
+  const question = retention?.viewerQuestion ?? project.project.growth?.viewerPromise ?? ''
+  const sourceNote = retention?.sourceNote ?? ''
+  const nextCuriosity = retention?.nextCuriosity ?? ''
+  const x = Math.round(width * 0.044)
+  const y = Math.round(height * 0.037)
+  const boxWidth = Math.round(width * 0.912)
+  const boxHeight = Math.round(height * (sourceNote || nextCuriosity ? 0.135 : 0.106))
+  const questionLines = wrapJapanese(question, 46, 2)
+  const meta = [sourceNote, nextCuriosity ? `NEXT: ${nextCuriosity}` : ''].filter(Boolean).join('   /   ')
 
   return `
     <g>
-      <rect x="${x}" y="${y}" width="${boxWidth}" height="${boxHeight}" rx="12" fill="rgba(255,255,255,.86)" stroke="rgba(9,13,17,.22)" stroke-width="3"/>
+      <rect x="${x}" y="${y}" width="${boxWidth}" height="${boxHeight}" rx="14" fill="rgba(9,13,17,.78)" stroke="rgba(255,255,255,.22)" stroke-width="2"/>
+      <rect x="${x}" y="${y}" width="132" height="42" rx="12" fill="${accent}"/>
+      <text x="${x + 66}" y="${y + 29}" fill="${beat === 'hook' || beat === 'climax' ? '#ffffff' : '#11151c'}" font-size="20" font-weight="900" text-anchor="middle" font-family="Cascadia Mono, Consolas, monospace">${escapeXml(label)}</text>
+      <text x="${x + 154}" y="${y + 36}" fill="#ffffff" stroke="rgba(7,10,14,.8)" stroke-width="2" paint-order="stroke fill" font-size="31" font-weight="900" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(truncateText(chapter, 58))}</text>
+      ${
+        questionLines.length > 0
+          ? `<text x="${x + 154}" y="${y + 76}" fill="#dff5ff" font-size="23" font-weight="800" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
+              ${questionLines.map((line, index) => `<tspan x="${x + 154}" dy="${index === 0 ? 0 : 30}">${escapeXml(line)}</tspan>`).join('\n')}
+            </text>`
+          : ''
+      }
+      ${
+        meta
+          ? `<rect x="${x + 154}" y="${y + boxHeight - 30}" width="${Math.round(boxWidth * 0.77)}" height="23" rx="11" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.16)" stroke-width="1"/>
+             <text x="${x + 170}" y="${y + boxHeight - 13}" fill="#ffe2a2" font-size="16" font-weight="800" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(truncateText(meta, 86))}</text>`
+          : ''
+      }
+    </g>`
+}
+
+function renderEmphasisChips(shot: Shot, width: number, height: number) {
+  const words = shot.caption?.emphasis?.filter(Boolean).slice(0, 4) ?? []
+  if (words.length === 0) {
+    return ''
+  }
+
+  const y = Math.round(height * 0.686)
+  let x = Math.round(width * 0.22)
+  return words
+    .map((word) => {
+      const chipWidth = Math.min(Math.round(width * 0.17), Math.max(120, word.length * 28 + 54))
+      const currentX = x
+      x += chipWidth + 14
+      return `
+        <g>
+          <rect x="${currentX}" y="${y}" width="${chipWidth}" height="40" rx="20" fill="#ffcc4d" stroke="rgba(17,21,28,.55)" stroke-width="2"/>
+          <text x="${currentX + chipWidth / 2}" y="${y + 28}" fill="#11151c" font-size="22" font-weight="900" text-anchor="middle" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(truncateText(word, 12))}</text>
+        </g>`
+    })
+    .join('\n')
+}
+
+function renderVisual(visual: NonNullable<Shot['visuals']>[number], width: number, height: number) {
+  const x = Math.round(width * 0.59)
+  const y = Math.round(height * 0.18)
+  const boxWidth = Math.round(width * 0.34)
+  const boxHeight = Math.round(height * 0.27)
+  const bodyLines = wrapJapanese(visual.body ?? '', 22, 3)
+  const itemLines = (visual.items ?? []).slice(0, 5)
+  const accent = visualAccent(visual.type)
+
+  return `
+    <g>
+      <rect x="${x}" y="${y}" width="${boxWidth}" height="${boxHeight}" rx="12" fill="rgba(255,255,255,.88)" stroke="rgba(9,13,17,.22)" stroke-width="3"/>
+      <rect x="${x}" y="${y}" width="12" height="${boxHeight}" rx="6" fill="${accent}"/>
       <rect x="${x}" y="${y}" width="${boxWidth}" height="54" rx="12" fill="#10151b"/>
-      <text x="${x + 28}" y="${y + 36}" fill="#ffcc4d" font-size="22" font-weight="900" font-family="Cascadia Mono, Consolas, monospace">${escapeXml(visual.type.toUpperCase())}</text>
-      <text x="${x + 28}" y="${y + 95}" fill="#11151a" font-size="35" font-weight="900" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(visual.title)}</text>
+      <text x="${x + 30}" y="${y + 36}" fill="${accent}" font-size="22" font-weight="900" font-family="Cascadia Mono, Consolas, monospace">${escapeXml(visualTypeLabel(visual.type))}</text>
+      <text x="${x + 28}" y="${y + 95}" fill="#11151a" font-size="33" font-weight="900" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">${escapeXml(truncateText(visual.title, 18))}</text>
       <text x="${x + 28}" y="${y + 142}" fill="#27313c" font-size="25" font-weight="750" font-family="Yu Gothic UI, Meiryo, Segoe UI, sans-serif">
         ${bodyLines.map((line, index) => `<tspan x="${x + 28}" dy="${index === 0 ? 0 : 34}">${escapeXml(line)}</tspan>`).join('\n')}
         ${itemLines.map((line, index) => `<tspan x="${x + 28}" dy="${bodyLines.length === 0 && index === 0 ? 0 : 34}">- ${escapeXml(line)}</tspan>`).join('\n')}
@@ -924,8 +992,8 @@ function assetBox(position: NonNullable<Shot['assets']>[number]['position'], wid
     width: Math.round(width * 0.31),
     height: Math.round(height * 0.24),
   }
-  const top = Math.round(height * (0.1 + index * 0.035))
-  const middle = Math.round(height * 0.13)
+  const top = Math.round(height * (0.18 + index * 0.035))
+  const middle = Math.round(height * 0.24)
 
   if (position === 'main-center') {
     return { ...large, x: Math.round(width / 2 - large.width / 2), y: middle }
@@ -936,7 +1004,7 @@ function assetBox(position: NonNullable<Shot['assets']>[number]['position'], wid
   if (position === 'lower-third') {
     return {
       x: Math.round(width * 0.26),
-      y: Math.round(height * 0.58),
+      y: Math.round(height * 0.6),
       width: Math.round(width * 0.48),
       height: Math.round(height * 0.12),
     }
@@ -944,9 +1012,9 @@ function assetBox(position: NonNullable<Shot['assets']>[number]['position'], wid
   if (position === 'fullscreen') {
     return {
       x: Math.round(width * 0.08),
-      y: Math.round(height * 0.08),
+      y: Math.round(height * 0.17),
       width: Math.round(width * 0.84),
-      height: Math.round(height * 0.58),
+      height: Math.round(height * 0.5),
     }
   }
 
@@ -1542,7 +1610,93 @@ function escapeXml(value: string) {
     .replace(/"/g, '&quot;')
 }
 
-function wrapJapanese(text: string, maxChars: number) {
+function retentionBeatLabel(beat: NonNullable<Shot['retention']>['beat']) {
+  switch (beat) {
+    case 'hook':
+      return 'HOOK'
+    case 'viewer-benefit':
+      return 'BENEFIT'
+    case 'question':
+      return 'QUESTION'
+    case 'early-payoff':
+      return 'PAYOFF'
+    case 'background':
+      return 'CONTEXT'
+    case 'twist':
+      return 'TWIST'
+    case 'climax':
+      return 'CLIMAX'
+    case 'summary':
+      return 'SUMMARY'
+    case 'next-video':
+      return 'NEXT'
+    case 'evidence':
+    default:
+      return 'EVIDENCE'
+  }
+}
+
+function retentionBeatAccent(beat: NonNullable<Shot['retention']>['beat']) {
+  switch (beat) {
+    case 'hook':
+    case 'early-payoff':
+    case 'climax':
+      return '#ff6b7a'
+    case 'viewer-benefit':
+    case 'summary':
+    case 'next-video':
+      return '#70e0a0'
+    case 'question':
+    case 'twist':
+      return '#35d0ff'
+    default:
+      return '#ffcc4d'
+  }
+}
+
+function visualTypeLabel(type: NonNullable<Shot['visuals']>[number]['type']) {
+  switch (type) {
+    case 'question':
+      return 'QUESTION'
+    case 'timeline':
+      return 'TIMELINE'
+    case 'comparison':
+      return 'COMPARE'
+    case 'source':
+      return 'SOURCE'
+    case 'map':
+      return 'MAP'
+    case 'chapter':
+      return 'CHAPTER'
+    default:
+      return type.toUpperCase()
+  }
+}
+
+function visualAccent(type: NonNullable<Shot['visuals']>[number]['type']) {
+  switch (type) {
+    case 'question':
+      return '#ff6b7a'
+    case 'comparison':
+    case 'timeline':
+    case 'chart':
+    case 'map':
+      return '#35d0ff'
+    case 'source':
+    case 'code':
+      return '#70e0a0'
+    case 'chapter':
+      return '#ffcc4d'
+    default:
+      return '#3158a8'
+  }
+}
+
+function truncateText(value: string, maxChars: number) {
+  return value.length > maxChars ? `${value.slice(0, Math.max(0, maxChars - 1))}…` : value
+}
+
+function wrapJapanese(text: string, maxChars: number, maxLines = 3) {
   const normalized = text.replace(/\s+/g, ' ').trim()
   const lines: string[] = []
   let current = ''
@@ -1559,7 +1713,7 @@ function wrapJapanese(text: string, maxChars: number) {
     lines.push(current)
   }
 
-  return lines.slice(0, 3)
+  return lines.slice(0, maxLines)
 }
 
 function gridPath(width: number, height: number, interval: number) {

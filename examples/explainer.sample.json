@@ -20,6 +20,21 @@
       "audioBitrate": "192k",
       "audioSampleRate": 48000
     },
+    "growth": {
+      "targetViewer": "AI動画制作に興味はあるが、従来の編集作業で止まっている個人クリエイター",
+      "viewerPromise": "LLMのJSON台本を、音声・テロップ・図解・MP4出力までつながる編集素材に変える流れがわかる",
+      "coreQuestion": "なぜAI時代の動画制作は、ただ文章を書く作業ではなくJSONで設計する作業になるのか？",
+      "titleCandidates": [
+        "なぜAI動画制作はJSON設計で一気に変わるのか？",
+        "ゆっくり解説動画をAIで作る本当の近道",
+        "生成AIで動画編集はどこまで自動化できるのか？"
+      ],
+      "thumbnailTexts": ["編集が変わる", "JSONで動画化", "AI制作の核心"],
+      "openingHook": "AI動画は、もう一部のクリエイターだけの道具じゃないのを知ってる？",
+      "retentionGoal": "冒頭30秒で価値を提示し、各ショットで画面変化と問いを維持する",
+      "shortsHook": "AIが書いたJSONだけで、ゆっくり解説動画はどこまで作れるのか？",
+      "nextVideoIdea": "次回は、伸びるゆっくり解説の台本構成をテンプレ化する"
+    },
     "readingDictionary": [
       {
         "surface": "台本",
@@ -76,18 +91,26 @@
         {
           "id": "shot-01",
           "speakerId": "reimu",
-          "text": "今回は、LLM が作った JSON 台本をそのまま読み込んで、ゆっくり解説動画にする流れを見ていくよ。",
+          "text": "AI動画は、もう一部のクリエイターだけの道具じゃないのを知ってる？",
           "duration": 5.2,
           "emotion": "happy",
           "layout": "duo",
           "caption": {
-            "emphasis": ["JSON 台本", "ゆっくり解説動画"]
+            "text": "AI動画は、もう一部のクリエイターだけの道具じゃないのを知ってる？",
+            "emphasis": ["AI動画", "道具"]
+          },
+          "retention": {
+            "beat": "hook",
+            "chapterLabel": "0:00 Hook",
+            "viewerQuestion": "AIだけで本当に動画になるの？",
+            "visualChange": "黒板にJSON構造図のプレースホルダーを出す",
+            "nextCuriosity": "ただ文章を書くだけでは足りない理由を次で見せる"
           },
           "visuals": [
             {
-              "type": "keyword",
-              "title": "LLM JSON",
-              "body": "台詞・表情・尺・背景・補足ビジュアルを構造化"
+              "type": "question",
+              "title": "AI動画の核心",
+              "body": "台詞だけでなく、画面と尺まで設計する"
             }
           ],
           "assets": [
@@ -112,13 +135,21 @@
           "emotion": "thinking",
           "layout": "right-focus",
           "caption": {
+            "text": "ポイントは、動画編集の判断を JSON に閉じ込めること。あとから人間が直しやすいのも大事だね。",
             "emphasis": ["人間が直しやすい"]
+          },
+          "retention": {
+            "beat": "viewer-benefit",
+            "chapterLabel": "見るメリット",
+            "viewerQuestion": "どこをAIに任せて、どこを人間が直すの？",
+            "visualChange": "編集メモの差し替え枠を出し、判断を素材化する",
+            "nextCuriosity": "JSONに入れる情報を分けると一気に扱いやすくなる"
           },
           "visuals": [
             {
-              "type": "bullet",
+              "type": "comparison",
               "title": "JSON に入れる情報",
-              "items": ["話者", "台詞", "表情", "秒数", "画面メモ"]
+              "items": ["読み上げ: 台詞", "画面: 図解と配置", "編集: 秒数と効果"]
             }
           ],
           "assets": [
@@ -156,11 +187,20 @@
           "emotion": "surprised",
           "layout": "left-focus",
           "caption": {
+            "text": "アプリは JSON を検証して、タイムライン、字幕、音声、画像フレームを一気につなげるよ。",
             "emphasis": ["検証", "タイムライン", "字幕", "音声"]
+          },
+          "retention": {
+            "beat": "early-payoff",
+            "chapterLabel": "最初の答え",
+            "viewerQuestion": "JSONを読み込んだ後、実際には何が起きるの？",
+            "visualChange": "生成パイプライン図に切り替える",
+            "sourceNote": "仕様メモ: YukkuriCast Script JSON 1.0",
+            "nextCuriosity": "音声つきMP4まで出せるかが次のポイント"
           },
           "visuals": [
             {
-              "type": "chart",
+              "type": "timeline",
               "title": "変換パイプライン",
               "items": ["JSON", "Preview", "Voice", "Frames", "MP4"]
             }
@@ -187,12 +227,21 @@
           "emotion": "happy",
           "layout": "duo",
           "caption": {
+            "text": "Windows では AquesTalkPlayer を標準にして、最後に FFmpeg で音声付き MP4 として書き出す構成にしているぜ。",
             "emphasis": ["Windows", "FFmpeg", "MP4"]
+          },
+          "retention": {
+            "beat": "next-video",
+            "chapterLabel": "次への導線",
+            "viewerQuestion": "次はどんな台本なら再生維持が伸びる？",
+            "visualChange": "GPU書き出しの効果レーンを表示する",
+            "sourceNote": "出力メモ: 1920x1080 / H.264 / AAC / 48kHz",
+            "nextCuriosity": "次回は伸びる台本テンプレートをそのままJSON化する"
           },
           "visuals": [
             {
-              "type": "code",
-              "title": "Export",
+              "type": "source",
+              "title": "Export Spec",
               "body": "script.json -> audio.wav + frame.png -> output.mp4"
             }
           ],

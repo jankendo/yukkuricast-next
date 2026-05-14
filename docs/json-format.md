@@ -23,6 +23,17 @@
       "audioBitrate": "192k",
       "audioSampleRate": 48000
     },
+    "growth": {
+      "targetViewer": "AI動画制作を始めたい個人クリエイター",
+      "viewerPromise": "JSON台本から音声・テロップ・図解・MP4出力までの流れがわかる",
+      "coreQuestion": "なぜAI時代の動画制作はJSONで設計すると強いのか？",
+      "titleCandidates": ["なぜAI動画制作はJSON設計で変わるのか？"],
+      "thumbnailTexts": ["編集が変わる", "JSONで動画化"],
+      "openingHook": "AI動画は、もう一部のクリエイターだけの道具じゃないのを知ってる？",
+      "retentionGoal": "冒頭30秒で価値を提示し、1分ごとに小さな山場を入れる",
+      "shortsHook": "AIが書いたJSONだけで動画はどこまで作れるのか？",
+      "nextVideoIdea": "伸びるゆっくり解説の台本構成"
+    },
     "readingDictionary": [
       { "surface": "JSON", "reading": "ジェイソン", "source": "project" }
     ]
@@ -49,6 +60,17 @@
           "duration": 4.5,
           "emotion": "happy",
           "layout": "duo",
+          "caption": {
+            "text": "ここに台詞を書きます。",
+            "emphasis": ["台詞"]
+          },
+          "retention": {
+            "beat": "hook",
+            "chapterLabel": "0:00 Hook",
+            "viewerQuestion": "この動画を見る理由は何？",
+            "visualChange": "テーマ全体図を出す",
+            "nextCuriosity": "次に核心の問いを出す"
+          },
           "assets": [
             {
               "id": "img-topic-map",
@@ -79,8 +101,11 @@ characters は reimu と marisa の 2 人を使い、各 shot は 4 秒から 7 
 speakerId は characters に存在する id だけを使ってください。
 scenes[].shots[].caption.emphasis には字幕で強調したい短い語句を 1 から 3 個入れてください。
 project.export.gpuAcceleration は "auto"、audioSampleRate は 48000 を標準にしてください。
+project.growth には、targetViewer、viewerPromise、coreQuestion、titleCandidates、thumbnailTexts、openingHook、retentionGoal、shortsHook、nextVideoIdea を入れてください。
 英字略語・固有名詞・最新AI/IT用語など、AquesTalkが誤読しそうな語は project.readingDictionary に
 { "surface": "表記", "reading": "読み", "source": "project" } として入れてください。
+各 shot は caption.text を必ず持たせ、原則として shot.text と同じ文章を入れてください。長すぎる場合は caption を短くせず、shot を分割してください。
+各 shot は retention を持たせ、hook / viewer-benefit / question / early-payoff / background / evidence / twist / climax / summary / next-video のどれかを beat に指定してください。
 画像や図解が必要な箇所は shots[].assets に type "placeholder" / track "video" / placeholder true を入れ、
 source には架空のローカルパスやURLを書かないでください。
 ゆっくり解説らしく、下部は太字字幕、左右下は霊夢/魔理沙、中央から上部は図解・Bロール・キーワードカードに分け、
@@ -91,6 +116,7 @@ source には架空のローカルパスやURLを書かないでください。
 ## 主要フィールド
 
 - `project.export`: 書き出し設定です。`gpuAcceleration: "auto"` で NVIDIA NVENC / Intel Quick Sync / AMD AMF を自動検出し、使えない環境では CPU に安全フォールバックします。音声は `audioSampleRate: 48000` と `audioBitrate: "192k"` を推奨します。
+- `project.growth`: 伸びるゆっくり解説を作るための企画メタです。`targetViewer`, `viewerPromise`, `coreQuestion`, `titleCandidates`, `thumbnailTexts`, `openingHook`, `retentionGoal`, `shortsHook`, `nextVideoIdea` を使い、クリック率、冒頭維持、平均視聴時間、次回視聴を意識した設計を保存します。
 - `project.readingDictionary`: 台本内だけで有効な読み補正辞書です。字幕やJSON原文は変えず、AquesTalkPlayer / SAPI に渡す直前の読み上げ本文だけを補正します。例: `{ "surface": "NVENC", "reading": "エヌブイエンク" }`。
 - `characters[].asset`: `reimu`, `marisa`, `akari`, `kohaku`, `aoba`, `custom`。`custom` はアプリ内の「話者素材を取り込む」から作った PNG 化済みユーザー素材です。
 - `characters[].customAsset`: `asset` が `custom` の時に必要です。取り込み時にアプリがローカル管理フォルダへ安全に変換保存した素材 ID とパスを持ちます。
@@ -101,7 +127,9 @@ source には架空のローカルパスやURLを書かないでください。
 - `shots[].duration`: JSON上の目安尺です。AquesTalk の実音声が長い場合、プレビューとMP4書き出しでは音声が終わるまで自動延長されます。
 - `shots[].emotion`: `neutral`, `happy`, `thinking`, `surprised`, `serious`。
 - `shots[].layout`: `duo`, `left-focus`, `right-focus`, `solo-center`。
-- `shots[].visuals`: 画面右上の補助パネルに出す情報です。`keyword`, `bullet`, `chart`, `code`, `image` を指定できます。
+- `shots[].caption.text`: 画面下部のテロップ本文です。基本的に `shots[].text` と同じ文章を入れます。テロップを短くするために情報を削らず、長い台詞はショットを分割します。
+- `shots[].retention`: 視聴維持設計です。`beat` は `hook`, `viewer-benefit`, `question`, `early-payoff`, `background`, `evidence`, `twist`, `climax`, `summary`, `next-video`。`chapterLabel`, `viewerQuestion`, `visualChange`, `sourceNote`, `nextCuriosity` はプレビュー/出力上の上部ラベルや編集メモとして使います。
+- `shots[].visuals`: 画面右上の補助パネルに出す情報です。`keyword`, `bullet`, `chart`, `code`, `image`, `question`, `timeline`, `comparison`, `source`, `map`, `chapter` を指定できます。
 - `shots[].assets`: 編集タイムライン上の素材です。`track` は `video`, `character`, `voice`, `telop`, `effect`、`type` は `placeholder`, `image`, `video`, `audio`, `telop`, `effect` を使います。
 - `shots[].assets[].position`: プレビュー/出力上の配置です。`main-left`, `main-center`, `main-right`, `top-left`, `top-right`, `lower-third`, `fullscreen` を使えます。キャラクターは下左右、字幕は下部の専用領域を使うため、画像プレースホルダーは中央から上寄りを推奨します。
 - `shots[].assets[].source`: 実ファイルをユーザーが用意済みの場合だけ書きます。LLM はローカルパスやURLを推測して書かず、未用意なら `placeholder: true` と `label` で差し替え指示を残します。
@@ -118,10 +146,14 @@ AquesTalkPlayer 本体の `aq_dic/aq_user.dic` はバイナリ辞書で、公式
 
 ## ゆっくり解説レイアウト方針
 
+- 冒頭は挨拶ではなく、8秒以内に謎・異常な事実・結論の一部を出します。
+- 上部には章ラベル、視聴者の問い、次への引きを出し、動画の見どころを常に明示します。
 - キャラクターは左右下に固定し、話者フォーカス時だけ少し強調します。
 - 下部 25% 前後は字幕専用の安全領域です。
 - 図解・差し替え画像・Bロールは中央から上部に置き、字幕と顔にかぶせません。
 - 重要語だけを `caption.emphasis` で黄色強調し、全文装飾は避けます。
+- 4-8秒ごとに、図解、キーワードカード、背景、章ラベル、強調語のいずれかを変えます。
+- 章末は `retention.nextCuriosity` で次の疑問を残し、離脱しにくい構成にします。
 - YMM4 のように、ボイス・字幕・キャラクター・画像・効果をタイムライン上の独立レーンとして扱います。
 
 完全な JSON Schema は [schema/yukkuricast-script.schema.json](../schema/yukkuricast-script.schema.json)、動作サンプルは [examples/explainer.sample.json](../examples/explainer.sample.json) にあります。

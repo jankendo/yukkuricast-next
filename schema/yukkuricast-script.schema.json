@@ -40,6 +40,28 @@
             "audioSampleRate": { "enum": [44100, 48000] }
           }
         },
+        "growth": {
+          "type": "object",
+          "properties": {
+            "targetViewer": { "type": "string", "maxLength": 220 },
+            "viewerPromise": { "type": "string", "maxLength": 260 },
+            "coreQuestion": { "type": "string", "maxLength": 220 },
+            "titleCandidates": {
+              "type": "array",
+              "maxItems": 8,
+              "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+            },
+            "thumbnailTexts": {
+              "type": "array",
+              "maxItems": 8,
+              "items": { "type": "string", "minLength": 1, "maxLength": 20 }
+            },
+            "openingHook": { "type": "string", "maxLength": 260 },
+            "retentionGoal": { "type": "string", "maxLength": 220 },
+            "shortsHook": { "type": "string", "maxLength": 260 },
+            "nextVideoIdea": { "type": "string", "maxLength": 220 }
+          }
+        },
         "readingDictionary": {
           "type": "array",
           "maxItems": 200,
@@ -131,13 +153,51 @@
                     "position": { "enum": ["bottom", "center"] }
                   }
                 },
+                "retention": {
+                  "type": "object",
+                  "properties": {
+                    "beat": {
+                      "enum": [
+                        "hook",
+                        "viewer-benefit",
+                        "question",
+                        "early-payoff",
+                        "background",
+                        "evidence",
+                        "twist",
+                        "climax",
+                        "summary",
+                        "next-video"
+                      ]
+                    },
+                    "chapterLabel": { "type": "string", "maxLength": 60 },
+                    "viewerQuestion": { "type": "string", "maxLength": 120 },
+                    "visualChange": { "type": "string", "maxLength": 120 },
+                    "sourceNote": { "type": "string", "maxLength": 160 },
+                    "nextCuriosity": { "type": "string", "maxLength": 120 }
+                  }
+                },
                 "visuals": {
                   "type": "array",
                   "items": {
                     "type": "object",
                     "required": ["type", "title"],
                     "properties": {
-                      "type": { "enum": ["image", "keyword", "bullet", "chart", "code"] },
+                      "type": {
+                        "enum": [
+                          "image",
+                          "keyword",
+                          "bullet",
+                          "chart",
+                          "code",
+                          "question",
+                          "timeline",
+                          "comparison",
+                          "source",
+                          "map",
+                          "chapter"
+                        ]
+                      },
                       "title": { "type": "string", "minLength": 1 },
                       "body": { "type": "string" },
                       "items": { "type": "array", "items": { "type": "string" } }

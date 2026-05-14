@@ -32,7 +32,7 @@ export function PreviewStage({
   onTogglePlayback,
 }: PreviewStageProps) {
   const speaker = project.characters.find((character) => character.id === shot.speakerId)
-  const captionText = shot.caption?.text ?? shot.text
+  const captionText = shot.caption?.text?.trim() || shot.text
 
   return (
     <main className="preview-wrap">
@@ -50,6 +50,7 @@ export function PreviewStage({
       >
         <div className="stage-grid" />
         <div className="stage-playhead" style={{ width: `${Math.round(shotProgress * 100)}%` }} />
+        <RetentionStrip project={project} shot={shot} />
         <VisualCueCard shot={shot} progress={shotProgress} />
         <MediaPlaceholders shot={shot} />
         <div className={`character-layer layout-${shot.layout ?? 'duo'}`}>
@@ -92,6 +93,29 @@ export function PreviewStage({
         <div className="audio-status">{audioStatus}</div>
       </div>
     </main>
+  )
+}
+
+function RetentionStrip({ project, shot }: { project: YukkuriProject; shot: Shot }) {
+  const retention = shot.retention
+  const beat = retention?.beat ?? 'evidence'
+  const chapter = retention?.chapterLabel ?? project.project.growth?.coreQuestion ?? 'Retention beat'
+  const question = retention?.viewerQuestion ?? project.project.growth?.viewerPromise
+
+  return (
+    <div className="retention-strip" aria-label="retention design">
+      <div className="retention-main">
+        <span className={`retention-beat beat-${beat}`}>{retentionBeatLabel(beat)}</span>
+        <strong>{chapter}</strong>
+      </div>
+      {question && <p>{question}</p>}
+      {(retention?.sourceNote || retention?.nextCuriosity) && (
+        <div className="retention-subrow">
+          {retention.sourceNote && <span>{retention.sourceNote}</span>}
+          {retention.nextCuriosity && <span>NEXT: {retention.nextCuriosity}</span>}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -157,7 +181,7 @@ function VisualCueCard({ shot, progress }: { shot: Shot; progress: number }) {
       className={`visual-card visual-${visual.type}`}
       style={{ '--visual-progress': `${Math.round(progress * 100)}%` } as CSSProperties}
     >
-      <div className="visual-type">{visual.type}</div>
+      <div className="visual-type">{visualTypeLabel(visual.type)}</div>
       <h3>{visual.title}</h3>
       {visual.body && <p>{visual.body}</p>}
       {visual.items && (
@@ -169,6 +193,51 @@ function VisualCueCard({ shot, progress }: { shot: Shot; progress: number }) {
       )}
     </aside>
   )
+}
+
+function retentionBeatLabel(beat: NonNullable<Shot['retention']>['beat']) {
+  switch (beat) {
+    case 'hook':
+      return 'HOOK'
+    case 'viewer-benefit':
+      return 'BENEFIT'
+    case 'question':
+      return 'QUESTION'
+    case 'early-payoff':
+      return 'PAYOFF'
+    case 'background':
+      return 'CONTEXT'
+    case 'twist':
+      return 'TWIST'
+    case 'climax':
+      return 'CLIMAX'
+    case 'summary':
+      return 'SUMMARY'
+    case 'next-video':
+      return 'NEXT'
+    case 'evidence':
+    default:
+      return 'EVIDENCE'
+  }
+}
+
+function visualTypeLabel(type: NonNullable<Shot['visuals']>[number]['type']) {
+  switch (type) {
+    case 'question':
+      return 'QUESTION'
+    case 'timeline':
+      return 'TIMELINE'
+    case 'comparison':
+      return 'COMPARE'
+    case 'source':
+      return 'SOURCE'
+    case 'map':
+      return 'MAP'
+    case 'chapter':
+      return 'CHAPTER'
+    default:
+      return type.toUpperCase()
+  }
 }
 
 function renderEmphasis(text: string, words: string[]) {

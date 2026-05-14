@@ -25,6 +25,33 @@ const timelineAssetSchema = z.object({
   notes: z.string().optional(),
 })
 
+const visualCueTypeSchema = z.enum([
+  'image',
+  'keyword',
+  'bullet',
+  'chart',
+  'code',
+  'question',
+  'timeline',
+  'comparison',
+  'source',
+  'map',
+  'chapter',
+])
+
+const retentionBeatSchema = z.enum([
+  'hook',
+  'viewer-benefit',
+  'question',
+  'early-payoff',
+  'background',
+  'evidence',
+  'twist',
+  'climax',
+  'summary',
+  'next-video',
+])
+
 const readingDictionaryEntrySchema = z.object({
   id: z.string().min(1).max(80).optional(),
   surface: z.string().min(1).max(80),
@@ -56,6 +83,19 @@ export const yukkuriProjectSchema = z.object({
         videoBitrate: bitrateSchema.optional(),
         audioBitrate: bitrateSchema.optional(),
         audioSampleRate: z.union([z.literal(44100), z.literal(48000)]).optional(),
+      })
+      .optional(),
+    growth: z
+      .object({
+        targetViewer: z.string().max(220).optional(),
+        viewerPromise: z.string().max(260).optional(),
+        coreQuestion: z.string().max(220).optional(),
+        titleCandidates: z.array(z.string().min(1).max(80)).max(8).optional(),
+        thumbnailTexts: z.array(z.string().min(1).max(20)).max(8).optional(),
+        openingHook: z.string().max(260).optional(),
+        retentionGoal: z.string().max(220).optional(),
+        shortsHook: z.string().max(260).optional(),
+        nextVideoIdea: z.string().max(220).optional(),
       })
       .optional(),
     readingDictionary: z.array(readingDictionaryEntrySchema).max(200).optional(),
@@ -121,10 +161,20 @@ export const yukkuriProjectSchema = z.object({
                   position: z.enum(['bottom', 'center']).optional(),
                 })
                 .optional(),
+              retention: z
+                .object({
+                  beat: retentionBeatSchema.optional(),
+                  chapterLabel: z.string().max(60).optional(),
+                  viewerQuestion: z.string().max(120).optional(),
+                  visualChange: z.string().max(120).optional(),
+                  sourceNote: z.string().max(160).optional(),
+                  nextCuriosity: z.string().max(120).optional(),
+                })
+                .optional(),
               visuals: z
                 .array(
                   z.object({
-                    type: z.enum(['image', 'keyword', 'bullet', 'chart', 'code']),
+                    type: visualCueTypeSchema,
                     title: z.string().min(1),
                     body: z.string().optional(),
                     items: z.array(z.string()).optional(),
