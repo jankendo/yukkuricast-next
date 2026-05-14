@@ -609,15 +609,8 @@ async function synthesizeWithAquesTalkPlayer(text: string, speaker: CharacterPro
 }
 
 async function runAquesTalkPlayer(exePath: string, args: string[]) {
-  const script = `
-$ErrorActionPreference = 'Stop'
-$process = Start-Process -FilePath ${powerShellString(exePath)} -WorkingDirectory ${powerShellString(
-    path.dirname(exePath),
-  )} -ArgumentList @(${args.map(powerShellString).join(', ')}) -Wait -PassThru -WindowStyle Hidden
-exit $process.ExitCode
-`
   try {
-    await runProcess('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script])
+    await runProcess(exePath, args, { cwd: path.dirname(exePath) })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     throw new Error(`AquesTalkPlayer の同期実行に失敗しました: ${message}`, { cause: error })
@@ -1310,9 +1303,9 @@ function videoEncoderArgs(options: RenderOptions) {
   return ['-c:v', 'h264_amf', '-b:v', options.videoBitrate]
 }
 
-function runProcess(command: string, args: string[]) {
+function runProcess(command: string, args: string[], options: { cwd?: string } = {}) {
   return new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { windowsHide: true })
+    const child = spawn(command, args, { cwd: options.cwd, windowsHide: true })
     let stderr = ''
 
     child.stderr.on('data', (chunk: Buffer) => {
