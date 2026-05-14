@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="none"/>
+
+    <g stroke="#ffffff" stroke-linecap="round" opacity=".72">
+      <path d="M80 120H900" stroke-width="10"/><path d="M220 162H930" stroke-width="13"/><path d="M80 204H960" stroke-width="16"/><path d="M220 246H990" stroke-width="19"/><path d="M80 288H1020" stroke-width="10"/><path d="M220 330H1050" stroke-width="13"/><path d="M80 372H1080" stroke-width="16"/><path d="M220 414H1110" stroke-width="19"/><path d="M80 456H1140" stroke-width="10"/><path d="M220 498H1170" stroke-width="13"/><path d="M80 540H1200" stroke-width="16"/><path d="M220 582H1230" stroke-width="19"/><path d="M80 624H1260" stroke-width="10"/><path d="M220 666H1290" stroke-width="13"/><path d="M80 708H1320" stroke-width="16"/><path d="M220 750H1350" stroke-width="19"/><path d="M80 792H1380" stroke-width="10"/><path d="M220 834H1410" stroke-width="13"/><path d="M80 876H1440" stroke-width="16"/><path d="M220 918H1470" stroke-width="19"/>
+    </g>
+</svg>

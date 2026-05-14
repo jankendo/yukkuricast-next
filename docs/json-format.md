@@ -98,8 +98,12 @@
 characters は reimu と marisa の 2 人を使い、各 shot は 4 秒から 7 秒を目安にしてください。
 標準音声は AquesTalkPlayer です。霊夢は voice.aquestalkPreset "れいむ"、魔理沙は "まりさ" にしてください。
 背景は scene ごとに classroom-board / news-desk / tatami-room / night-city / paper-light / studio-grid から内容に合わせて選んでください。
+追加背景として history-archive / science-space / tech-lab / mystery-room / economy-board / courtroom も使えます。
 speakerId は characters に存在する id だけを使ってください。
 scenes[].shots[].caption.emphasis には字幕で強調したい短い語句を 1 から 3 個入れてください。
+霊夢/魔理沙は同梱SVGを使い、霊夢は赤リボン・黒髪の視聴者代表、魔理沙は黒い魔女帽・白リボン・金髪の解説役として扱ってください。
+emotion は neutral / happy / thinking / surprised / serious / smug / confused / angry / flustered を使えます。
+演出が必要な shot には shots[].assets に type "effect" / track "effect" / effect "question-pop" などを入れてください。
 project.export.gpuAcceleration は "auto"、audioSampleRate は 48000 を標準にしてください。
 project.growth には、targetViewer、viewerPromise、coreQuestion、titleCandidates、thumbnailTexts、openingHook、retentionGoal、shortsHook、nextVideoIdea を入れてください。
 英字略語・固有名詞・最新AI/IT用語など、AquesTalkが誤読しそうな語は project.readingDictionary に
@@ -119,18 +123,20 @@ source には架空のローカルパスやURLを書かないでください。
 - `project.growth`: 伸びるゆっくり解説を作るための企画メタです。`targetViewer`, `viewerPromise`, `coreQuestion`, `titleCandidates`, `thumbnailTexts`, `openingHook`, `retentionGoal`, `shortsHook`, `nextVideoIdea` を使い、クリック率、冒頭維持、平均視聴時間、次回視聴を意識した設計を保存します。
 - `project.readingDictionary`: 台本内だけで有効な読み補正辞書です。字幕やJSON原文は変えず、AquesTalkPlayer / SAPI に渡す直前の読み上げ本文だけを補正します。例: `{ "surface": "NVENC", "reading": "エヌブイエンク" }`。
 - `characters[].asset`: `reimu`, `marisa`, `akari`, `kohaku`, `aoba`, `custom`。`custom` はアプリ内の「話者素材を取り込む」から作った PNG 化済みユーザー素材です。
+- `reimu` / `marisa`: 公式素材の抽出や他者素材の再利用ではなく、仕様に沿って生成した同梱SVGです。霊夢は赤い大リボンと黒髪、魔理沙は黒い魔女帽、白い大リボン、金髪を識別点にしています。
 - `characters[].customAsset`: `asset` が `custom` の時に必要です。取り込み時にアプリがローカル管理フォルダへ安全に変換保存した素材 ID とパスを持ちます。
 - `characters[].voice.engine`: `aquestalk-player` が標準です。`windows-sapi` は任意のフォールバックです。
 - `characters[].voice.aquestalkPreset`: AquesTalkPlayer のプリセット名です。標準は `れいむ` / `まりさ` で、`霊夢` / `魔理沙` は実行時に正規化されます。
 - `scenes[].background.type`: `asset`, `gradient`, `solid`, `grid`。新規JSONでは `asset` を推奨します。
-- `scenes[].background.asset`: `classroom-board`, `news-desk`, `tatami-room`, `night-city`, `paper-light`, `studio-grid`。
+- `scenes[].background.asset`: `classroom-board`, `news-desk`, `tatami-room`, `night-city`, `paper-light`, `studio-grid`, `history-archive`, `science-space`, `tech-lab`, `mystery-room`, `economy-board`, `courtroom`。
 - `shots[].duration`: JSON上の目安尺です。AquesTalk の実音声が長い場合、プレビューとMP4書き出しでは音声が終わるまで自動延長されます。
-- `shots[].emotion`: `neutral`, `happy`, `thinking`, `surprised`, `serious`。
+- `shots[].emotion`: `neutral`, `happy`, `thinking`, `surprised`, `serious`, `smug`, `confused`, `angry`, `flustered`。
 - `shots[].layout`: `duo`, `left-focus`, `right-focus`, `solo-center`。
 - `shots[].caption.text`: 画面下部のテロップ本文です。基本的に `shots[].text` と同じ文章を入れます。テロップを短くするために情報を削らず、長い台詞はショットを分割します。
 - `shots[].retention`: 視聴維持設計です。`beat` は `hook`, `viewer-benefit`, `question`, `early-payoff`, `background`, `evidence`, `twist`, `climax`, `summary`, `next-video`。`chapterLabel`, `viewerQuestion`, `visualChange`, `sourceNote`, `nextCuriosity` はプレビュー/出力上の上部ラベルや編集メモとして使います。
 - `shots[].visuals`: 画面右上の補助パネルに出す情報です。`keyword`, `bullet`, `chart`, `code`, `image`, `question`, `timeline`, `comparison`, `source`, `map`, `chapter` を指定できます。
 - `shots[].assets`: 編集タイムライン上の素材です。`track` は `video`, `character`, `voice`, `telop`, `effect`、`type` は `placeholder`, `image`, `video`, `audio`, `telop`, `effect` を使います。
+- `shots[].assets[].effect`: `type: "effect"` / `track: "effect"` の時に使う同梱エフェクトです。`speed-lines`, `impact-burst`, `question-pop`, `chapter-wipe`, `highlight-ring`, `sparkle-trail`, `danger-stripe`, `source-note` を指定できます。
 - `shots[].assets[].position`: プレビュー/出力上の配置です。`main-left`, `main-center`, `main-right`, `top-left`, `top-right`, `lower-third`, `fullscreen` を使えます。キャラクターは下左右、字幕は下部の専用領域を使うため、画像プレースホルダーは中央から上寄りを推奨します。
 - `shots[].assets[].source`: 実ファイルをユーザーが用意済みの場合だけ書きます。LLM はローカルパスやURLを推測して書かず、未用意なら `placeholder: true` と `label` で差し替え指示を残します。
 

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="none"/>
+
+    <defs><pattern id="stripe" width="120" height="120" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="60" height="120" fill="#ffcc4d"/><rect x="60" width="60" height="120" fill="#10151b"/></pattern></defs>
+    <rect x="0" y="0" width="1920" height="90" fill="url(#stripe)" opacity=".72"/>
+    <rect x="0" y="990" width="1920" height="90" fill="url(#stripe)" opacity=".72"/>
+</svg>

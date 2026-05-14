@@ -1,4 +1,4 @@
-import type { BackgroundAsset, CharacterProfile, Emotion } from '../types/script'
+import type { BackgroundAsset, CharacterProfile, EffectAsset, Emotion } from '../types/script'
 
 export function characterAssetUrl(asset: string, emotion: Emotion = 'neutral') {
   return assetUrl(`assets/characters/${asset}-${emotion}.svg`)
@@ -14,6 +14,10 @@ export function characterImageSource(character: CharacterProfile, emotion: Emoti
 
 export function backgroundAssetUrl(name: BackgroundAsset) {
   return assetUrl(`assets/backgrounds/${name}.svg`)
+}
+
+export function effectAssetUrl(name: EffectAsset) {
+  return assetUrl(`assets/effects/${name}.svg`)
 }
 
 function assetUrl(path: string) {

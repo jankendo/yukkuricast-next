@@ -60,7 +60,7 @@ export const sampleProject: YukkuriProject = {
       id: 'marisa',
       name: '魔理沙',
       asset: 'marisa',
-      defaultEmotion: 'thinking',
+      defaultEmotion: 'smug',
       side: 'right',
       voice: {
         engine: 'aquestalk-player',
@@ -119,6 +119,17 @@ export const sampleProject: YukkuriProject = {
               position: 'main-left',
               notes: 'あとで図解PNGに差し替える',
             },
+            {
+              id: 'fx-question-pop',
+              type: 'effect',
+              track: 'effect',
+              label: '問いを立てるポップエフェクト',
+              start: 0.1,
+              duration: 1.2,
+              effect: 'question-pop',
+              opacity: 0.62,
+              notes: '冒頭の疑問を強調',
+            },
           ],
         },
         {
@@ -126,7 +137,7 @@ export const sampleProject: YukkuriProject = {
           speakerId: 'marisa',
           text: 'ポイントは、動画編集の判断を JSON に閉じ込めること。あとから人間が直しやすいのも大事だね。',
           duration: 5.8,
-          emotion: 'thinking',
+          emotion: 'smug',
           layout: 'right-focus',
           caption: {
             text: 'ポイントは、動画編集の判断を JSON に閉じ込めること。あとから人間が直しやすいのも大事だね。',
@@ -168,9 +179,9 @@ export const sampleProject: YukkuriProject = {
       summary: '読み込みから書き出しまでの処理を説明する。',
       background: {
         type: 'asset',
-        asset: 'news-desk',
-        label: 'ニュース机',
-        accent: '#3158a8',
+        asset: 'tech-lab',
+        label: 'テック研究室',
+        accent: '#35d0ff',
       },
       shots: [
         {
@@ -211,6 +222,17 @@ export const sampleProject: YukkuriProject = {
               position: 'main-left',
               notes: '処理フロー図を配置',
             },
+            {
+              id: 'fx-source-note',
+              type: 'effect',
+              track: 'effect',
+              label: '出典メモ表示エフェクト',
+              start: 0.2,
+              duration: 1.6,
+              effect: 'source-note',
+              opacity: 0.68,
+              notes: '仕様メモを強調',
+            },
           ],
         },
         {
@@ -247,6 +269,8 @@ export const sampleProject: YukkuriProject = {
               label: 'GPU encoder auto',
               start: 0.8,
               duration: 3.6,
+              effect: 'speed-lines',
+              opacity: 0.32,
               notes: 'NVENC/QSV/AMF を自動検出',
             },
           ],

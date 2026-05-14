@@ -104,6 +104,42 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
     accent: '#5c83d6',
   },
   {
+    id: 'history-archive',
+    label: '歴史資料室',
+    description: '歴史ミステリー、古文書、一次資料、時系列整理向け。',
+    accent: '#d7a45b',
+  },
+  {
+    id: 'science-space',
+    label: '科学宇宙',
+    description: '宇宙、科学、仮説検証、図解多めの解説向け。',
+    accent: '#79d8ff',
+  },
+  {
+    id: 'tech-lab',
+    label: 'テック研究室',
+    description: 'AI、GPU、ソフトウェア、未来技術の解説向け。',
+    accent: '#35d0ff',
+  },
+  {
+    id: 'mystery-room',
+    label: 'ミステリー部屋',
+    description: '都市伝説、未解明、違和感を引っ張る構成向け。',
+    accent: '#ff6b7a',
+  },
+  {
+    id: 'economy-board',
+    label: '経済ボード',
+    description: 'お金、制度、比較、ランキング、生活影響の解説向け。',
+    accent: '#70e0a0',
+  },
+  {
+    id: 'courtroom',
+    label: '検証法廷',
+    description: '事件、社会問題、反対意見、ファクトチェック向け。',
+    accent: '#ffcc4d',
+  },
+  {
     id: 'paper-light',
     label: '紙ノート',
     description: '手順、まとめ、チェックリスト向け。',

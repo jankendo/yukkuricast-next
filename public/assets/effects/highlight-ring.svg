@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <rect width="1920" height="1080" fill="none"/>
+
+    <g fill="none" stroke-linecap="round" opacity=".85">
+      <ellipse cx="960" cy="520" rx="410" ry="220" stroke="#ffcc4d" stroke-width="24" stroke-dasharray="80 34"/>
+      <ellipse cx="960" cy="520" rx="500" ry="280" stroke="#ffffff" stroke-width="10" stroke-opacity=".45"/>
+    </g>
+</svg>

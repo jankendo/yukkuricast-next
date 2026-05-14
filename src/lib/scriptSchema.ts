@@ -17,6 +17,18 @@ const timelineAssetSchema = z.object({
   start: z.number().min(0).optional(),
   duration: z.number().min(0.1).max(600).optional(),
   source: z.string().min(1).optional(),
+  effect: z
+    .enum([
+      'speed-lines',
+      'impact-burst',
+      'question-pop',
+      'chapter-wipe',
+      'highlight-ring',
+      'sparkle-trail',
+      'danger-stripe',
+      'source-note',
+    ])
+    .optional(),
   placeholder: z.boolean().optional(),
   position: z
     .enum(['main-left', 'main-center', 'main-right', 'top-left', 'top-right', 'lower-third', 'fullscreen'])
@@ -50,6 +62,33 @@ const retentionBeatSchema = z.enum([
   'climax',
   'summary',
   'next-video',
+])
+
+const emotionSchema = z.enum([
+  'neutral',
+  'happy',
+  'thinking',
+  'surprised',
+  'serious',
+  'smug',
+  'confused',
+  'angry',
+  'flustered',
+])
+
+const backgroundAssetSchema = z.enum([
+  'studio-grid',
+  'paper-light',
+  'classroom-board',
+  'news-desk',
+  'tatami-room',
+  'night-city',
+  'history-archive',
+  'science-space',
+  'tech-lab',
+  'mystery-room',
+  'economy-board',
+  'courtroom',
 ])
 
 const readingDictionaryEntrySchema = z.object({
@@ -115,7 +154,7 @@ export const yukkuriProjectSchema = z.object({
             importedAt: z.string().optional(),
           })
           .optional(),
-        defaultEmotion: z.enum(['neutral', 'happy', 'thinking', 'surprised', 'serious']).optional(),
+        defaultEmotion: emotionSchema.optional(),
         side: z.enum(['left', 'right']),
         voice: z.object({
           engine: z.enum(['windows-sapi', 'aquestalk-player']),
@@ -136,9 +175,7 @@ export const yukkuriProjectSchema = z.object({
         summary: z.string().optional(),
         background: z.object({
           type: z.enum(['gradient', 'solid', 'grid', 'asset']),
-          asset: z
-            .enum(['studio-grid', 'paper-light', 'classroom-board', 'news-desk', 'tatami-room', 'night-city'])
-            .optional(),
+          asset: backgroundAssetSchema.optional(),
           label: z.string().optional(),
           from: colorSchema.optional(),
           to: colorSchema.optional(),
@@ -152,7 +189,7 @@ export const yukkuriProjectSchema = z.object({
               speakerId: z.string().min(1),
               text: z.string().min(1),
               duration: z.number().min(1).max(45),
-              emotion: z.enum(['neutral', 'happy', 'thinking', 'surprised', 'serious']).optional(),
+              emotion: emotionSchema.optional(),
               layout: z.enum(['duo', 'left-focus', 'right-focus', 'solo-center']).optional(),
               caption: z
                 .object({

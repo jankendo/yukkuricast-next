@@ -36,6 +36,14 @@ Markdown、説明文、コードフェンス、コメントは出力禁止です
 - 口語として自然な日本語にし、「だぜ」「だね」などを過剰に連発しない
 - 同じ語尾と同じ構文を連続させない
 
+キャラクター仕様:
+- 霊夢は「赤い大きなリボン、白フリル、黒〜濃茶の髪、丸い饅頭型の頭、半目、頬の赤み」を持つ同梱 asset "reimu" を使う
+- 霊夢の性格は、マイペース、素直、現実的、少し雑。発話は「どういうこと？」「それ本当なの？」「つまり〇〇ってこと？」のように視聴者の疑問を代弁する
+- 魔理沙は「黒い魔女帽子、白い大きなリボン、白フリル、金髪、丸い饅頭型の頭、得意げな半目」を持つ同梱 asset "marisa" を使う
+- 魔理沙の性格は、活発、知識豊富、自信家、好奇心旺盛。発話は結論を先に出し、「ここが重要なんだぜ」「つまり〇〇ってわけだ」のように整理する
+- 魔理沙の「だぜ」は3-5セリフに1回程度に抑え、毎文につけない
+- 東方Project二次創作として、公式素材の抽出、公式と誤認させる表現、他者の二次創作物の無断再利用を前提にしない。出力説明や投稿メモには必要に応じて二次創作である旨を残す
+
 必須 JSON 仕様:
 - format は "yukkuricast-script"
 - version は "1.0"
@@ -53,12 +61,12 @@ Markdown、説明文、コードフェンス、コメントは出力禁止です
 - 標準は AquesTalkPlayer。霊夢は voice.engine "aquestalk-player" / voice.aquestalkPreset "れいむ" / asset "reimu" / side "left"
 - 魔理沙は voice.engine "aquestalk-player" / voice.aquestalkPreset "まりさ" / asset "marisa" / side "right"
 - Windows 標準音声を使う話者は、ユーザーが明示した場合だけ voice.engine を "windows-sapi" にする
-- scenes[].background.type は "asset" を標準にし、asset は "classroom-board" | "news-desk" | "tatami-room" | "night-city" | "paper-light" | "studio-grid" から選ぶ
-- 勉強/制度は classroom-board、時事/比較は news-desk、雑談は tatami-room、IT/未来は night-city、手順は paper-light、分析は studio-grid
+- scenes[].background.type は "asset" を標準にし、asset は "classroom-board" | "news-desk" | "tatami-room" | "night-city" | "paper-light" | "studio-grid" | "history-archive" | "science-space" | "tech-lab" | "mystery-room" | "economy-board" | "courtroom" から選ぶ
+- 勉強/制度は classroom-board、時事/比較は news-desk、雑談は tatami-room、IT/未来は night-city、手順は paper-light、分析は studio-grid、歴史資料は history-archive、科学/宇宙は science-space、AI/技術は tech-lab、都市伝説/未解明は mystery-room、お金/制度比較は economy-board、事件/社会/反対意見の検証は courtroom
 - shots[].speakerId は characters[].id のどれかに一致させる
 - shots[].duration は 1-45 秒。通常は 3-8 秒、長くても 10 秒以内を目安にする
 - shots[].layout は "duo" | "left-focus" | "right-focus" | "solo-center"
-- shots[].emotion は "neutral" | "happy" | "thinking" | "surprised" | "serious"
+- shots[].emotion は "neutral" | "happy" | "thinking" | "surprised" | "serious" | "smug" | "confused" | "angry" | "flustered"
 - shots[].caption.text は必ず入れ、原則として shots[].text と完全一致させる
 - shots[].caption.position は通常 "bottom"
 - shots[].retention.beat は "hook" | "viewer-benefit" | "question" | "early-payoff" | "background" | "evidence" | "twist" | "climax" | "summary" | "next-video"
@@ -68,6 +76,8 @@ Markdown、説明文、コードフェンス、コメントは出力禁止です
 - shots[].assets[].track は "video" | "character" | "voice" | "telop" | "effect"。素材をタイムラインのどのレーンへ置くかを表す
 - shots[].assets[].type は "placeholder" | "image" | "video" | "audio" | "telop" | "effect"
 - 画像素材が必要な shot には type "placeholder" / track "video" / placeholder true / label "差し替え画像: ..." を入れる
+- 演出が必要な shot には type "effect" / track "effect" / effect を入れる。effect は "speed-lines" | "impact-burst" | "question-pop" | "chapter-wipe" | "highlight-ring" | "sparkle-trail" | "danger-stripe" | "source-note"
+- effect の使い分け: 疑問提示は question-pop、衝撃情報は impact-burst、テンポアップは speed-lines、章切替は chapter-wipe、重要箇所は highlight-ring、軽い成功/明るい場面は sparkle-trail、注意喚起は danger-stripe、出典表示は source-note
 - AI は Windows のローカルパス、架空URL、存在しないファイル名を source に書かない。ユーザーが素材を用意する前提なら source は省略する
 - shots[].assets[].position は "main-left" | "main-center" | "main-right" | "top-left" | "top-right" | "lower-third" | "fullscreen" から選び、字幕とキャラクターを避ける
 - shots[].assets[].start は shot 内の開始秒、duration は shot 内の表示秒。shot.duration を超えないようにする

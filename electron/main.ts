@@ -20,6 +20,7 @@ import { getAllShots, yukkuriProjectSchema } from '../src/lib/scriptSchema'
 import type {
   CharacterProfile,
   CustomCharacterAsset,
+  EffectAsset,
   ExportProgress,
   ProjectExportSettings,
   ReadingDictionaryEntry,
@@ -41,6 +42,16 @@ const defaultVideoBitrate = '8M'
 const bundledAquesTalkPlayerCandidates = [
   'D:\\user\\Download\\aquestalkplayer_20250606\\aquestalkplayer\\AquesTalkPlayer.exe',
 ]
+const effectAssets = new Set<EffectAsset>([
+  'speed-lines',
+  'impact-burst',
+  'question-pop',
+  'chapter-wipe',
+  'highlight-ring',
+  'sparkle-trail',
+  'danger-stripe',
+  'source-note',
+])
 
 interface AudioRenderResult {
   duration: number
@@ -810,6 +821,7 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
   const bg = await backgroundSvg(background, width, height)
   const visualSvg = visual ? renderVisual(visual, width, height) : ''
   const assetSvg = renderShotAssets(shot, width, height)
+  const effectSvg = await renderShotEffects(shot, width, height)
   const retentionSvg = renderRetentionFrame(project, shot, width, height)
   const emphasisSvg = renderEmphasisChips(shot, width, height)
   const subtitleY = Math.round(height * 0.795)
@@ -823,6 +835,7 @@ async function buildFrameSvg(project: YukkuriProject, shot: Shot, background: Sc
   ${retentionSvg}
   ${assetSvg}
   ${visualSvg}
+  ${effectSvg}
   <g filter="url(#shadow)">
     ${characterLayers.join('\n')}
   </g>
@@ -985,6 +998,44 @@ function renderShotAssets(shot: Shot, width: number, height: number) {
         </g>`
     })
     .join('\n')
+}
+
+async function renderShotEffects(shot: Shot, width: number, height: number) {
+  const effects = (shot.assets ?? [])
+    .filter((asset) => asset.track === 'effect' && asset.type === 'effect')
+    .map((asset) => ({ asset, effect: resolveEffectAsset(asset) }))
+    .filter((entry): entry is { asset: NonNullable<Shot['assets']>[number]; effect: EffectAsset } => Boolean(entry.effect))
+    .slice(0, 3)
+
+  const layers = await Promise.all(
+    effects.map(async ({ asset, effect }) => {
+      const filePath = path.join(assetRoot(), 'effects', `${effect}.svg`)
+      const svg = await readFile(filePath, 'utf8')
+      const opacity = asset.opacity ?? 0.72
+      return `<image href="data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}" x="0" y="0" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice" opacity="${opacity}"/>`
+    }),
+  )
+
+  return layers.join('\n')
+}
+
+function resolveEffectAsset(asset: NonNullable<Shot['assets']>[number]): EffectAsset | undefined {
+  if (asset.effect && effectAssets.has(asset.effect)) {
+    return asset.effect
+  }
+
+  const source = asset.source?.startsWith('effect:') ? asset.source.slice('effect:'.length) : asset.source
+  if (source && effectAssets.has(source as EffectAsset)) {
+    return source as EffectAsset
+  }
+
+  for (const effect of effectAssets) {
+    if (asset.id.includes(effect)) {
+      return effect
+    }
+  }
+
+  return undefined
 }
 
 function assetBox(position: NonNullable<Shot['assets']>[number]['position'], width: number, height: number, index: number) {
@@ -1698,6 +1749,28 @@ function truncateText(value: string, maxChars: number) {
 
 function wrapJapanese(text: string, maxChars: number, maxLines = 3) {
   const normalized = text.replace(/\s+/g, ' ').trim()
+  if (/[\s/]|->/.test(normalized) && /[a-zA-Z0-9]/.test(normalized)) {
+    const tokens = normalized.split(/(\s+|->|\/|\+)/).filter((token) => token.length > 0)
+    const tokenLines: string[] = []
+    let current = ''
+
+    for (const token of tokens) {
+      const next = current ? `${current}${token}` : token.trimStart()
+      if (current && next.length > maxChars && !/^\s+$/.test(token)) {
+        tokenLines.push(current.trim())
+        current = token.trimStart()
+      } else {
+        current = next
+      }
+    }
+
+    if (current.trim()) {
+      tokenLines.push(current.trim())
+    }
+
+    return tokenLines.slice(0, maxLines)
+  }
+
   const lines: string[] = []
   let current = ''
 

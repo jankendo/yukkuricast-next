@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0" stop-color="#101827"/>
-      <stop offset="1" stop-color="#1f2a44"/>
-    </linearGradient>
-    <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
-      <path d="M80 0H0v80" fill="none" stroke="#7cc8ff" stroke-opacity=".09" stroke-width="2"/>
-    </pattern>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0f1726"/><stop offset="1" stop-color="#1f2f4d"/></linearGradient>
   </defs>
   <rect width="1920" height="1080" fill="url(#bg)"/>
-  <rect width="1920" height="1080" fill="url(#grid)"/>
-  <path d="M0 836c420-106 782-126 1120-58 318 63 536 49 800-48v350H0z" fill="#35d0ff" opacity=".08"/>
+  <circle cx="1640" cy="170" r="220" fill="#35d0ff" opacity=".12"/>
+  <circle cx="260" cy="820" r="280" fill="#35d0ff" opacity=".08"/>
+
+    <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M80 0H0v80" fill="none" stroke="#7cc8ff" stroke-opacity=".1" stroke-width="2"/>
+    </pattern>
+    <rect width="1920" height="1080" fill="url(#grid)"/>
+    <path d="M0 836c420-106 782-126 1120-58 318 63 536 49 800-48v350H0z" fill="#35d0ff" opacity=".1"/>
+    <path d="M132 168h560M132 238h360M132 308h460" stroke="#dff7ff" stroke-width="12" stroke-linecap="round" opacity=".22"/>
+
 </svg>

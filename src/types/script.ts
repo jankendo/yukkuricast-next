@@ -1,4 +1,13 @@
-export type Emotion = 'neutral' | 'happy' | 'thinking' | 'surprised' | 'serious'
+export type Emotion =
+  | 'neutral'
+  | 'happy'
+  | 'thinking'
+  | 'surprised'
+  | 'serious'
+  | 'smug'
+  | 'confused'
+  | 'angry'
+  | 'flustered'
 
 export type StageLayout = 'duo' | 'left-focus' | 'right-focus' | 'solo-center'
 
@@ -36,6 +45,22 @@ export type BackgroundAsset =
   | 'news-desk'
   | 'tatami-room'
   | 'night-city'
+  | 'history-archive'
+  | 'science-space'
+  | 'tech-lab'
+  | 'mystery-room'
+  | 'economy-board'
+  | 'courtroom'
+
+export type EffectAsset =
+  | 'speed-lines'
+  | 'impact-burst'
+  | 'question-pop'
+  | 'chapter-wipe'
+  | 'highlight-ring'
+  | 'sparkle-trail'
+  | 'danger-stripe'
+  | 'source-note'
 
 export interface Resolution {
   width: number
@@ -157,6 +182,7 @@ export interface TimelineAsset {
   start?: number
   duration?: number
   source?: string
+  effect?: EffectAsset
   placeholder?: boolean
   position?: TimelineAssetPosition
   opacity?: number

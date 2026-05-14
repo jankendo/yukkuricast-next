@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#0b1820"/><stop offset="1" stop-color="#14324a"/></linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="1640" cy="170" r="220" fill="#35d0ff" opacity=".12"/>
+  <circle cx="260" cy="820" r="280" fill="#35d0ff" opacity=".08"/>
+
+    <pattern id="circuit" width="96" height="96" patternUnits="userSpaceOnUse"><path d="M0 48h36m24 0h36M48 0v36m0 24v36" stroke="#35d0ff" stroke-opacity=".12" stroke-width="3"/><circle cx="48" cy="48" r="7" fill="#35d0ff" fill-opacity=".18"/></pattern>
+    <rect width="1920" height="1080" fill="url(#circuit)"/>
+    <rect x="130" y="118" width="780" height="430" rx="22" fill="rgba(255,255,255,.08)" stroke="rgba(53,208,255,.28)" stroke-width="4"/>
+    <path d="M210 236h420M210 316h520M210 396h340" stroke="#dff7ff" stroke-opacity=".34" stroke-width="14" stroke-linecap="round"/>
+    <path d="M1210 180h430v250h-430z" fill="rgba(53,208,255,.08)" stroke="rgba(53,208,255,.24)" stroke-width="5"/>
+
+</svg>

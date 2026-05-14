@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react'
 import { Pause, Play, Square } from 'lucide-react'
-import { backgroundAssetUrl, characterImageSource } from '../lib/assets'
+import { backgroundAssetUrl, characterImageSource, effectAssetUrl } from '../lib/assets'
 import { formatDuration } from '../lib/scriptSchema'
-import type { CharacterProfile, SceneBackground, Shot, YukkuriProject } from '../types/script'
+import type { CharacterProfile, EffectAsset, SceneBackground, Shot, TimelineAsset, YukkuriProject } from '../types/script'
 
 interface PreviewStageProps {
   project: YukkuriProject
@@ -53,6 +53,7 @@ export function PreviewStage({
         <RetentionStrip project={project} shot={shot} />
         <VisualCueCard shot={shot} progress={shotProgress} />
         <MediaPlaceholders shot={shot} />
+        <EffectLayer shot={shot} />
         <div className={`character-layer layout-${shot.layout ?? 'duo'}`}>
           {project.characters.map((character) => (
             <CharacterSprite
@@ -95,6 +96,17 @@ export function PreviewStage({
     </main>
   )
 }
+
+const effectAssets = new Set<EffectAsset>([
+  'speed-lines',
+  'impact-burst',
+  'question-pop',
+  'chapter-wipe',
+  'highlight-ring',
+  'sparkle-trail',
+  'danger-stripe',
+  'source-note',
+])
 
 function RetentionStrip({ project, shot }: { project: YukkuriProject; shot: Shot }) {
   const retention = shot.retention
@@ -143,6 +155,31 @@ function MediaPlaceholders({ shot }: { shot: Shot }) {
   )
 }
 
+function EffectLayer({ shot }: { shot: Shot }) {
+  const effects = (shot.assets ?? [])
+    .filter((asset) => asset.track === 'effect' && asset.type === 'effect')
+    .map((asset) => ({ asset, effect: resolveEffectAsset(asset) }))
+    .filter((entry): entry is { asset: TimelineAsset; effect: EffectAsset } => Boolean(entry.effect))
+
+  if (effects.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="stage-effect-layer" aria-label="shot effect assets">
+      {effects.slice(0, 3).map(({ asset, effect }) => (
+        <img
+          key={`${asset.id}-${effect}`}
+          className={`stage-effect effect-${effect}`}
+          src={effectAssetUrl(effect)}
+          alt=""
+          style={{ opacity: asset.opacity ?? 0.72 }}
+        />
+      ))}
+    </div>
+  )
+}
+
 function CharacterSprite({
   character,
   shot,
@@ -168,6 +205,25 @@ function CharacterSprite({
       <span>{character.name}</span>
     </div>
   )
+}
+
+function resolveEffectAsset(asset: TimelineAsset): EffectAsset | undefined {
+  if (asset.effect && effectAssets.has(asset.effect)) {
+    return asset.effect
+  }
+
+  const source = asset.source?.startsWith('effect:') ? asset.source.slice('effect:'.length) : asset.source
+  if (source && effectAssets.has(source as EffectAsset)) {
+    return source as EffectAsset
+  }
+
+  for (const effect of effectAssets) {
+    if (asset.id.includes(effect)) {
+      return effect
+    }
+  }
+
+  return undefined
 }
 
 function VisualCueCard({ shot, progress }: { shot: Shot; progress: number }) {
