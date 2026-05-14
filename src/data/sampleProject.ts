@@ -22,6 +22,10 @@ export const sampleProject: YukkuriProject = {
       audioBitrate: '192k',
       audioSampleRate: 48000,
     },
+    readingDictionary: [
+      { surface: '台本', reading: 'だいほん', source: 'project' },
+      { surface: '書き出し', reading: 'かきだし', source: 'project' },
+    ],
   },
   characters: [
     {

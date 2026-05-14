@@ -25,6 +25,15 @@ const timelineAssetSchema = z.object({
   notes: z.string().optional(),
 })
 
+const readingDictionaryEntrySchema = z.object({
+  id: z.string().min(1).max(80).optional(),
+  surface: z.string().min(1).max(80),
+  reading: z.string().min(1).max(120),
+  enabled: z.boolean().optional(),
+  caseSensitive: z.boolean().optional(),
+  source: z.enum(['builtin', 'user', 'project']).optional(),
+})
+
 export const yukkuriProjectSchema = z.object({
   format: z.literal('yukkuricast-script'),
   version: z.literal('1.0'),
@@ -49,6 +58,7 @@ export const yukkuriProjectSchema = z.object({
         audioSampleRate: z.union([z.literal(44100), z.literal(48000)]).optional(),
       })
       .optional(),
+    readingDictionary: z.array(readingDictionaryEntrySchema).max(200).optional(),
   }),
   characters: z
     .array(

@@ -39,6 +39,11 @@
             "audioBitrate": { "type": "string", "pattern": "^\\d+(k|K|m|M)?$" },
             "audioSampleRate": { "enum": [44100, 48000] }
           }
+        },
+        "readingDictionary": {
+          "type": "array",
+          "maxItems": 200,
+          "items": { "$ref": "#/$defs/readingDictionaryEntry" }
         }
       }
     },
@@ -173,6 +178,18 @@
         },
         "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
         "notes": { "type": "string" }
+      }
+    },
+    "readingDictionaryEntry": {
+      "type": "object",
+      "required": ["surface", "reading"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "surface": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "reading": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "enabled": { "type": "boolean" },
+        "caseSensitive": { "type": "boolean" },
+        "source": { "enum": ["builtin", "user", "project"] }
       }
     }
   }

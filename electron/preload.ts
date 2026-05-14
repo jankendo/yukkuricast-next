@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld('yukkuri', {
   importCharacterAsset: () => ipcRenderer.invoke('asset:import-character'),
   getVoiceSettings: () => ipcRenderer.invoke('voice:get-settings'),
   selectAquesTalkPlayer: () => ipcRenderer.invoke('voice:select-aquestalk-player'),
+  addReadingDictionaryEntry: (surface: string, reading: string) =>
+    ipcRenderer.invoke('voice:add-reading-dictionary-entry', surface, reading),
+  removeReadingDictionaryEntry: (id: string) => ipcRenderer.invoke('voice:remove-reading-dictionary-entry', id),
   renderPreviewAudio: (project: YukkuriProject, shotId: string) =>
     ipcRenderer.invoke('preview:render-audio', project, shotId),
   renderPreviewTimelineAudio: (project: YukkuriProject) => ipcRenderer.invoke('preview:render-timeline-audio', project),

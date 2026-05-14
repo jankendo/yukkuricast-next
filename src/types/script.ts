@@ -32,6 +32,15 @@ export interface ProjectExportSettings {
   audioSampleRate?: 44100 | 48000
 }
 
+export interface ReadingDictionaryEntry {
+  id?: string
+  surface: string
+  reading: string
+  enabled?: boolean
+  caseSensitive?: boolean
+  source?: 'builtin' | 'user' | 'project'
+}
+
 export type VoiceEngine = 'windows-sapi' | 'aquestalk-player'
 
 export interface CharacterVoice {
@@ -141,6 +150,7 @@ export interface YukkuriProject {
     resolution: Resolution
     theme: ProjectTheme
     export?: ProjectExportSettings
+    readingDictionary?: ReadingDictionaryEntry[]
   }
   characters: CharacterProfile[]
   scenes: Scene[]
@@ -177,6 +187,9 @@ export interface ImportedAssetResult {
 
 export interface VoiceEngineSettings {
   aquestalkPlayerPath?: string
+  readingDictionary?: ReadingDictionaryEntry[]
+  builtinReadingDictionarySize?: number
+  builtinReadingDictionaryVersion?: string
   updatedAt?: string
 }
 

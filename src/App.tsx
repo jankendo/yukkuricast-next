@@ -350,6 +350,38 @@ function App() {
     return undefined
   }
 
+  async function addReadingDictionaryEntry(surface: string, reading: string) {
+    if (!window.yukkuri?.addReadingDictionaryEntry) {
+      setExportResult({
+        ok: false,
+        error: '読み補正辞書の保存は Electron アプリ起動時に利用できます。',
+      })
+      return
+    }
+
+    const result = await window.yukkuri.addReadingDictionaryEntry(surface, reading)
+    if (result.settings) {
+      setVoiceSettings(result.settings)
+    }
+    if (result.error) {
+      setExportResult({ ok: false, error: result.error })
+    }
+  }
+
+  async function removeReadingDictionaryEntry(id: string) {
+    if (!window.yukkuri?.removeReadingDictionaryEntry) {
+      return
+    }
+
+    const result = await window.yukkuri.removeReadingDictionaryEntry(id)
+    if (result.settings) {
+      setVoiceSettings(result.settings)
+    }
+    if (result.error) {
+      setExportResult({ ok: false, error: result.error })
+    }
+  }
+
   async function useAquesTalkForSpeaker(speakerId: string, preset?: string) {
     if (!voiceSettings.aquestalkPlayerPath) {
       await configureAquesTalkPlayer()
@@ -560,6 +592,8 @@ function App() {
           onImportAsset={importAssetForSpeaker}
           onSetAquesTalkVoice={useAquesTalkForSpeaker}
           onUpdateSpeakerVoice={updateSpeakerVoice}
+          onAddReadingDictionaryEntry={addReadingDictionaryEntry}
+          onRemoveReadingDictionaryEntry={removeReadingDictionaryEntry}
         />
       </div>
 

@@ -19,6 +19,8 @@ declare global {
       importCharacterAsset: () => Promise<ImportedAssetResult>
       getVoiceSettings: () => Promise<VoiceEngineSettings>
       selectAquesTalkPlayer: () => Promise<VoiceSettingsResult>
+      addReadingDictionaryEntry: (surface: string, reading: string) => Promise<VoiceSettingsResult>
+      removeReadingDictionaryEntry: (id: string) => Promise<VoiceSettingsResult>
       renderPreviewAudio: (project: YukkuriProject, shotId: string) => Promise<PreviewAudioResult>
       renderPreviewTimelineAudio: (project: YukkuriProject) => Promise<PreviewTimelineAudioResult>
       exportVideo: (project: YukkuriProject) => Promise<ExportResult>

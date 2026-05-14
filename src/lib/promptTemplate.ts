@@ -25,6 +25,7 @@ Markdown、説明文、コードフェンス、コメントは出力禁止です
 - project.theme.palette は "studio-dark" | "paper-light" | "cyber-classroom"
 - project.theme.subtitleStyle は "pop" | "news" | "minimal"
 - project.export.gpuAcceleration は "auto" を標準にし、videoBitrate は "8M"、audioBitrate は "192k"、audioSampleRate は 48000 を標準にする
+- project.readingDictionary には、固有名詞・英字略語・最新AI/IT用語など、AquesTalkが誤読しやすい語だけを { "surface": "表記", "reading": "読み", "source": "project" } で入れる
 - characters[].asset は標準で "reimu" | "marisa" を使う。追加話者には "akari" | "kohaku" | "aoba" も使える
 - ユーザー素材を使う場合でも AI は customAsset のローカルパスを捏造しない。まず同梱 asset を使い、アプリ上で差し替える前提にする
 - characters[].voice.engine は "windows-sapi" または "aquestalk-player"
@@ -57,6 +58,7 @@ Markdown、説明文、コードフェンス、コメントは出力禁止です
 - ゆっくり解説らしく、霊夢と魔理沙の掛け合いで「問い」「補足」「まとめ」を短い単位で回す
 - 画像プレースホルダーは 1 shot に 0-1 個を基本にし、必要な図解だけを置く
 - 固有名詞や数値は必要な場合だけ使う
+- 英語略語は字幕では元表記を残し、読みは readingDictionary で補正する。例: LLM -> エルエルエム、JSON -> ジェイソン、NVENC -> エヌブイエンク
 - JSON は必ず構文的に valid にする
 - trailing comma は禁止
 

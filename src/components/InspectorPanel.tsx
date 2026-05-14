@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Download,
   Gauge,
   ImagePlus,
@@ -9,8 +10,9 @@ import {
   Sparkles,
   Wand2,
 } from 'lucide-react'
-import type { CSSProperties } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { AQUESTALK_VOICE_PRESETS, BACKGROUND_PRESETS, normalizeAquesTalkPreset } from '../lib/presets'
+import { BUILTIN_READING_DICTIONARY, applyReadingDictionary, buildEffectiveReadingDictionary } from '../lib/readingDictionary'
 import type {
   CharacterVoice,
   ExportProgress,
@@ -32,6 +34,8 @@ interface InspectorPanelProps {
   onImportAsset: (speakerId: string) => void
   onSetAquesTalkVoice: (speakerId: string, preset?: string) => void
   onUpdateSpeakerVoice: (speakerId: string, patch: Partial<CharacterVoice>) => void
+  onAddReadingDictionaryEntry: (surface: string, reading: string) => void
+  onRemoveReadingDictionaryEntry: (id: string) => void
 }
 
 export function InspectorPanel({
@@ -45,8 +49,29 @@ export function InspectorPanel({
   onImportAsset,
   onSetAquesTalkVoice,
   onUpdateSpeakerVoice,
+  onAddReadingDictionaryEntry,
+  onRemoveReadingDictionaryEntry,
 }: InspectorPanelProps) {
   const speaker = project.characters.find((character) => character.id === shot.speakerId)
+  const [surfaceInput, setSurfaceInput] = useState('')
+  const [readingInput, setReadingInput] = useState('')
+  const effectiveDictionary = useMemo(
+    () => buildEffectiveReadingDictionary(voiceSettings.readingDictionary, project.project.readingDictionary),
+    [project.project.readingDictionary, voiceSettings.readingDictionary],
+  )
+  const correctedText = useMemo(() => applyReadingDictionary(shot.text, effectiveDictionary), [effectiveDictionary, shot.text])
+  const userEntries = voiceSettings.readingDictionary ?? []
+
+  function addReadingEntry() {
+    const surface = surfaceInput.trim()
+    const reading = readingInput.trim()
+    if (!surface || !reading) {
+      return
+    }
+    onAddReadingDictionaryEntry(surface, reading)
+    setSurfaceInput('')
+    setReadingInput('')
+  }
 
   return (
     <aside className="panel inspector" aria-label="inspector">
@@ -161,6 +186,49 @@ export function InspectorPanel({
           </label>
         )}
         {voiceSettings.aquestalkPlayerPath && <code className="path-code">{voiceSettings.aquestalkPlayerPath}</code>}
+        <div className="reading-dictionary-box">
+          <div className="group-heading compact-heading">
+            <BookOpen size={15} />
+            読み補正辞書
+          </div>
+          <p className="dictionary-meta">
+            内蔵 {voiceSettings.builtinReadingDictionarySize ?? BUILTIN_READING_DICTIONARY.length}語 / ユーザー {userEntries.length}語
+          </p>
+          <p className="reading-preview" title={correctedText}>
+            {correctedText}
+          </p>
+          <div className="dictionary-input-grid">
+            <input
+              value={surfaceInput}
+              placeholder="表記: JSON"
+              aria-label="読み補正の表記"
+              onChange={(event) => setSurfaceInput(event.target.value)}
+            />
+            <input
+              value={readingInput}
+              placeholder="読み: ジェイソン"
+              aria-label="読み補正の読み"
+              onChange={(event) => setReadingInput(event.target.value)}
+            />
+          </div>
+          <button type="button" className="wide-button" disabled={!surfaceInput.trim() || !readingInput.trim()} onClick={addReadingEntry}>
+            辞書に追加
+          </button>
+          {userEntries.length > 0 && (
+            <div className="dictionary-entry-list">
+              {userEntries.slice(0, 8).map((entry) => (
+                <button
+                  key={entry.id ?? `${entry.surface}-${entry.reading}`}
+                  type="button"
+                  title="クリックで削除"
+                  onClick={() => entry.id && onRemoveReadingDictionaryEntry(entry.id)}
+                >
+                  {entry.surface} → {entry.reading}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="info-group asset-import-box">

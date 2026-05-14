@@ -8,12 +8,21 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { normalizeAquesTalkPreset } from '../src/lib/presets'
+import {
+  BUILTIN_READING_DICTIONARY,
+  BUILTIN_READING_DICTIONARY_VERSION,
+  applyReadingDictionary,
+  buildEffectiveReadingDictionary,
+  sanitizeReadingDictionaryEntries,
+  sanitizeReadingDictionaryEntry,
+} from '../src/lib/readingDictionary'
 import { getAllShots, yukkuriProjectSchema } from '../src/lib/scriptSchema'
 import type {
   CharacterProfile,
   CustomCharacterAsset,
   ExportProgress,
   ProjectExportSettings,
+  ReadingDictionaryEntry,
   SceneBackground,
   Shot,
   VoiceEngineSettings,
@@ -281,6 +290,58 @@ ipcMain.handle('voice:select-aquestalk-player', async () => {
   }
 })
 
+ipcMain.handle('voice:add-reading-dictionary-entry', async (_event, surface: string, reading: string) => {
+  try {
+    const entry = sanitizeReadingDictionaryEntry({
+      id: randomUUID(),
+      surface,
+      reading,
+      enabled: true,
+      source: 'user',
+    })
+    if (!entry) {
+      throw new Error('表記と読みを入力してください。')
+    }
+    const settings = await readVoiceSettings()
+    const existing = sanitizeReadingDictionaryEntries(settings.readingDictionary)
+    const nextEntries = [
+      ...existing.filter(
+        (candidate) => candidate.surface.toLowerCase() !== entry.surface.toLowerCase(),
+      ),
+      entry,
+    ]
+    const saved = await saveVoiceSettings({
+      ...settings,
+      readingDictionary: nextEntries,
+      updatedAt: new Date().toISOString(),
+    })
+    return { canceled: false, settings: saved }
+  } catch (error) {
+    return {
+      canceled: false,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+})
+
+ipcMain.handle('voice:remove-reading-dictionary-entry', async (_event, id: string) => {
+  try {
+    const settings = await readVoiceSettings()
+    const nextEntries = sanitizeReadingDictionaryEntries(settings.readingDictionary).filter((entry) => entry.id !== id)
+    const saved = await saveVoiceSettings({
+      ...settings,
+      readingDictionary: nextEntries,
+      updatedAt: new Date().toISOString(),
+    })
+    return { canceled: false, settings: saved }
+  } catch (error) {
+    return {
+      canceled: false,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+})
+
 ipcMain.handle('preview:render-audio', async (_event, rawProject: YukkuriProject, shotId: string) => {
   const workspace = path.join(app.getPath('temp'), 'yukkuricast-next-preview', randomUUID())
   const rawOutputPath = path.join(workspace, `${safeFileName(shotId)}.raw.wav`)
@@ -291,6 +352,7 @@ ipcMain.handle('preview:render-audio', async (_event, rawProject: YukkuriProject
     assertSpeakerReferences(project)
     const ffmpegPath = resolveFfmpegPath()
     const audioSampleRate = project.project.export?.audioSampleRate ?? defaultAudioSampleRate
+    const readingDictionary = await resolveReadingDictionary(project)
     const shot = getAllShots(project).find((candidate) => candidate.id === shotId)
     if (!shot) {
       throw new Error(`preview shot not found: ${shotId}`)
@@ -302,7 +364,7 @@ ipcMain.handle('preview:render-audio', async (_event, rawProject: YukkuriProject
     }
 
     await mkdir(workspace, { recursive: true })
-    const voice = await synthesizeVoice(shot.text, speaker, rawOutputPath, shot.duration, ffmpegPath)
+    const voice = await synthesizeVoice(shot.text, speaker, rawOutputPath, shot.duration, ffmpegPath, readingDictionary)
     const effectiveDuration = normalizeDuration(Math.max(shot.duration, voice.duration + audioTailPaddingSeconds))
     await normalizeVoiceWav(ffmpegPath, rawOutputPath, outputPath, effectiveDuration, audioSampleRate)
     const wav = await readFile(outputPath)
@@ -332,9 +394,10 @@ ipcMain.handle('preview:render-timeline-audio', async (_event, rawProject: Yukku
     assertSpeakerReferences(project)
     const ffmpegPath = resolveFfmpegPath()
     const audioSampleRate = project.project.export?.audioSampleRate ?? defaultAudioSampleRate
+    const readingDictionary = await resolveReadingDictionary(project)
 
     await mkdir(workspace, { recursive: true })
-    const rendered = await synthesizeTimelineAudio(project, workspace, outputPath, ffmpegPath, audioSampleRate)
+    const rendered = await synthesizeTimelineAudio(project, workspace, outputPath, ffmpegPath, audioSampleRate, readingDictionary)
     const wav = await readFile(outputPath)
 
     return {
@@ -403,6 +466,7 @@ async function exportProject(
 
   try {
     const renderOptions = await resolveRenderOptions(ffmpegPath, project.project.export, workspace, progress)
+    const readingDictionary = await resolveReadingDictionary(project)
 
     for (let index = 0; index < shots.length; index += 1) {
       const shot = shots[index]
@@ -418,7 +482,7 @@ async function exportProject(
         message: `${shot.id}: ${voiceEngineLabel(speaker.voice.engine)} 音声を生成中`,
         percent: percent(++step, totalSteps),
       })
-      const voice = await synthesizeVoice(shot.text, speaker, rawVoicePath, shot.duration, ffmpegPath)
+      const voice = await synthesizeVoice(shot.text, speaker, rawVoicePath, shot.duration, ffmpegPath, readingDictionary)
       const clipDuration = normalizeDuration(Math.max(shot.duration, voice.duration + audioTailPaddingSeconds))
 
       progress({
@@ -507,9 +571,11 @@ async function synthesizeVoice(
   outputPath: string,
   duration: number,
   ffmpegPath: string,
+  readingDictionary: ReadingDictionaryEntry[],
 ): Promise<AudioRenderResult> {
+  const spokenText = applyReadingDictionary(text, readingDictionary)
   if (speaker.voice.engine === 'aquestalk-player') {
-    await synthesizeWithAquesTalkPlayer(text, speaker, outputPath)
+    await synthesizeWithAquesTalkPlayer(spokenText, speaker, outputPath)
     return { duration: await readWavDurationSeconds(outputPath, duration) }
   }
 
@@ -530,7 +596,7 @@ $synth.Rate = ${rate}
 $synth.Volume = ${volume}
 ${voiceSelection}
 $synth.SetOutputToWaveFile(${powerShellString(outputPath)})
-$synth.Speak(${powerShellString(text)})
+$synth.Speak(${powerShellString(spokenText)})
 $synth.Dispose()
 `
 
@@ -549,6 +615,7 @@ async function synthesizeTimelineAudio(
   outputPath: string,
   ffmpegPath: string,
   audioSampleRate: 44100 | 48000,
+  readingDictionary: ReadingDictionaryEntry[],
 ) {
   const shots = getAllShots(project)
   const voicePaths: string[] = []
@@ -566,7 +633,7 @@ async function synthesizeTimelineAudio(
     }
 
     engines.add(voiceEngineLabel(speaker.voice.engine))
-    const voice = await synthesizeVoice(shot.text, speaker, rawVoicePath, shot.duration, ffmpegPath)
+    const voice = await synthesizeVoice(shot.text, speaker, rawVoicePath, shot.duration, ffmpegPath, readingDictionary)
     const clipDuration = normalizeDuration(Math.max(shot.duration, voice.duration + audioTailPaddingSeconds))
     await normalizeVoiceWav(ffmpegPath, rawVoicePath, normalizedVoicePath, clipDuration, audioSampleRate)
     voicePaths.push(normalizedVoicePath)
@@ -919,6 +986,7 @@ function settingsPath() {
 async function readVoiceSettings(): Promise<VoiceEngineSettings> {
   let savedPath: string | undefined
   let updatedAt: string | undefined
+  let readingDictionary: ReadingDictionaryEntry[] = []
 
   try {
     const content = await readFile(settingsPath(), 'utf8')
@@ -928,12 +996,19 @@ async function readVoiceSettings(): Promise<VoiceEngineSettings> {
         ? parsed.aquestalkPlayerPath
         : undefined
     updatedAt = typeof parsed.updatedAt === 'string' ? parsed.updatedAt : undefined
+    readingDictionary = sanitizeReadingDictionaryEntries(parsed.readingDictionary).map((entry) => ({
+      ...entry,
+      source: 'user',
+    }))
   } catch {
     savedPath = undefined
   }
 
   return {
     aquestalkPlayerPath: await findAquesTalkPlayerPath(savedPath),
+    readingDictionary,
+    builtinReadingDictionarySize: BUILTIN_READING_DICTIONARY.length,
+    builtinReadingDictionaryVersion: BUILTIN_READING_DICTIONARY_VERSION,
     updatedAt,
   }
 }
@@ -945,10 +1020,23 @@ async function saveVoiceSettings(settings: VoiceEngineSettings) {
     : undefined
   const normalized: VoiceEngineSettings = {
     aquestalkPlayerPath: resolved,
+    readingDictionary: sanitizeReadingDictionaryEntries(settings.readingDictionary).map((entry) => ({
+      ...entry,
+      source: 'user',
+    })),
     updatedAt: settings.updatedAt ?? new Date().toISOString(),
   }
   await writeFile(settingsPath(), JSON.stringify(normalized, null, 2), 'utf8')
-  return normalized
+  return {
+    ...normalized,
+    builtinReadingDictionarySize: BUILTIN_READING_DICTIONARY.length,
+    builtinReadingDictionaryVersion: BUILTIN_READING_DICTIONARY_VERSION,
+  }
+}
+
+async function resolveReadingDictionary(project: YukkuriProject) {
+  const settings = await readVoiceSettings()
+  return buildEffectiveReadingDictionary(settings.readingDictionary, project.project.readingDictionary)
 }
 
 async function validateAquesTalkPlayerPath(exePath: string) {
